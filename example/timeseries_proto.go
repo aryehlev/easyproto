@@ -23,8 +23,6 @@ type ProtobufUnmarshaler interface {
 }
 
 // MarshalProtobuf marshals Timeseries into protobuf message, appends this message to dst and returns the result.
-//
-// This function doesn't allocate memory on repeated calls.
 func (x *Timeseries) MarshalProtobuf(dst []byte) []byte {
 	m := _mp.Get()
 	x.MarshalProtobufTo(m.MessageMarshaler())
@@ -36,9 +34,7 @@ func (x *Timeseries) MarshalProtobuf(dst []byte) []byte {
 // MarshalProtobufTo marshals Timeseries fields to the given MessageMarshaler.
 // Implements ProtobufMarshaler interface.
 func (x *Timeseries) MarshalProtobufTo(mm *easyproto.MessageMarshaler) {
-
 	mm.AppendString(1, x.Name)
-
 	for i := range x.Samples {
 		x.Samples[i].MarshalProtobufTo(mm.AppendMessage(2))
 	}
@@ -47,9 +43,7 @@ func (x *Timeseries) MarshalProtobufTo(mm *easyproto.MessageMarshaler) {
 // UnmarshalProtobuf unmarshals Timeseries from protobuf message at src.
 func (x *Timeseries) UnmarshalProtobuf(src []byte) (err error) {
 	// Set default values
-
 	x.Name = *new(string)
-
 	x.Samples = x.Samples[:0]
 
 	// Parse message
@@ -61,21 +55,18 @@ func (x *Timeseries) UnmarshalProtobuf(src []byte) (err error) {
 		}
 		switch fc.FieldNum {
 		case 1:
-
 			v, ok := fc.String()
 			if !ok {
 				return fmt.Errorf("cannot read Timeseries.Name")
 			}
 			x.Name = v
 		case 2:
-
 			data, ok := fc.MessageData()
 			if !ok {
 				return fmt.Errorf("cannot read Timeseries.Samples data")
 			}
 			x.Samples = append(x.Samples, Sample{})
-			item := &x.Samples[len(x.Samples)-1]
-			if err := item.UnmarshalProtobuf(data); err != nil {
+			if err := x.Samples[len(x.Samples)-1].UnmarshalProtobuf(data); err != nil {
 				return fmt.Errorf("cannot unmarshal Timeseries.Samples: %w", err)
 			}
 		}
@@ -84,8 +75,6 @@ func (x *Timeseries) UnmarshalProtobuf(src []byte) (err error) {
 }
 
 // MarshalProtobuf marshals Sample into protobuf message, appends this message to dst and returns the result.
-//
-// This function doesn't allocate memory on repeated calls.
 func (x *Sample) MarshalProtobuf(dst []byte) []byte {
 	m := _mp.Get()
 	x.MarshalProtobufTo(m.MessageMarshaler())
@@ -97,18 +86,14 @@ func (x *Sample) MarshalProtobuf(dst []byte) []byte {
 // MarshalProtobufTo marshals Sample fields to the given MessageMarshaler.
 // Implements ProtobufMarshaler interface.
 func (x *Sample) MarshalProtobufTo(mm *easyproto.MessageMarshaler) {
-
 	mm.AppendDouble(1, x.Value)
-
 	mm.AppendInt64(2, x.Timestamp)
 }
 
 // UnmarshalProtobuf unmarshals Sample from protobuf message at src.
 func (x *Sample) UnmarshalProtobuf(src []byte) (err error) {
 	// Set default values
-
 	x.Value = *new(float64)
-
 	x.Timestamp = *new(int64)
 
 	// Parse message
@@ -120,14 +105,12 @@ func (x *Sample) UnmarshalProtobuf(src []byte) (err error) {
 		}
 		switch fc.FieldNum {
 		case 1:
-
 			v, ok := fc.Double()
 			if !ok {
 				return fmt.Errorf("cannot read Sample.Value")
 			}
 			x.Value = v
 		case 2:
-
 			v, ok := fc.Int64()
 			if !ok {
 				return fmt.Errorf("cannot read Sample.Timestamp")
@@ -139,8 +122,6 @@ func (x *Sample) UnmarshalProtobuf(src []byte) (err error) {
 }
 
 // MarshalProtobuf marshals AllTypes into protobuf message, appends this message to dst and returns the result.
-//
-// This function doesn't allocate memory on repeated calls.
 func (x *AllTypes) MarshalProtobuf(dst []byte) []byte {
 	m := _mp.Get()
 	x.MarshalProtobufTo(m.MessageMarshaler())
@@ -152,70 +133,40 @@ func (x *AllTypes) MarshalProtobuf(dst []byte) []byte {
 // MarshalProtobufTo marshals AllTypes fields to the given MessageMarshaler.
 // Implements ProtobufMarshaler interface.
 func (x *AllTypes) MarshalProtobufTo(mm *easyproto.MessageMarshaler) {
-
 	mm.AppendString(1, x.StrField)
-
 	mm.AppendBytes(2, x.BytesField)
-
 	mm.AppendInt32(3, x.Int32Field)
-
 	mm.AppendInt64(4, x.Int64Field)
-
 	mm.AppendUint32(5, x.Uint32Field)
-
 	mm.AppendUint64(6, x.Uint64Field)
-
 	mm.AppendSint32(7, x.Sint32Field)
-
 	mm.AppendSint64(8, x.Sint64Field)
-
 	mm.AppendBool(9, x.BoolField)
-
 	mm.AppendDouble(10, x.DoubleField)
-
 	mm.AppendFloat(11, x.FloatField)
-
 	mm.AppendFixed32(12, x.Fixed32Field)
-
 	mm.AppendFixed64(13, x.Fixed64Field)
-
 	mm.AppendSfixed32(14, x.Sfixed32Field)
-
 	mm.AppendSfixed64(15, x.Sfixed64Field)
 }
 
 // UnmarshalProtobuf unmarshals AllTypes from protobuf message at src.
 func (x *AllTypes) UnmarshalProtobuf(src []byte) (err error) {
 	// Set default values
-
 	x.StrField = *new(string)
-
 	x.BytesField = *new([]byte)
-
 	x.Int32Field = *new(int32)
-
 	x.Int64Field = *new(int64)
-
 	x.Uint32Field = *new(uint32)
-
 	x.Uint64Field = *new(uint64)
-
 	x.Sint32Field = *new(int32)
-
 	x.Sint64Field = *new(int64)
-
 	x.BoolField = *new(bool)
-
 	x.DoubleField = *new(float64)
-
 	x.FloatField = *new(float32)
-
 	x.Fixed32Field = *new(uint32)
-
 	x.Fixed64Field = *new(uint64)
-
 	x.Sfixed32Field = *new(int32)
-
 	x.Sfixed64Field = *new(int64)
 
 	// Parse message
@@ -227,105 +178,90 @@ func (x *AllTypes) UnmarshalProtobuf(src []byte) (err error) {
 		}
 		switch fc.FieldNum {
 		case 1:
-
 			v, ok := fc.String()
 			if !ok {
 				return fmt.Errorf("cannot read AllTypes.StrField")
 			}
 			x.StrField = v
 		case 2:
-
 			v, ok := fc.Bytes()
 			if !ok {
 				return fmt.Errorf("cannot read AllTypes.BytesField")
 			}
 			x.BytesField = v
 		case 3:
-
 			v, ok := fc.Int32()
 			if !ok {
 				return fmt.Errorf("cannot read AllTypes.Int32Field")
 			}
 			x.Int32Field = v
 		case 4:
-
 			v, ok := fc.Int64()
 			if !ok {
 				return fmt.Errorf("cannot read AllTypes.Int64Field")
 			}
 			x.Int64Field = v
 		case 5:
-
 			v, ok := fc.Uint32()
 			if !ok {
 				return fmt.Errorf("cannot read AllTypes.Uint32Field")
 			}
 			x.Uint32Field = v
 		case 6:
-
 			v, ok := fc.Uint64()
 			if !ok {
 				return fmt.Errorf("cannot read AllTypes.Uint64Field")
 			}
 			x.Uint64Field = v
 		case 7:
-
 			v, ok := fc.Sint32()
 			if !ok {
 				return fmt.Errorf("cannot read AllTypes.Sint32Field")
 			}
 			x.Sint32Field = v
 		case 8:
-
 			v, ok := fc.Sint64()
 			if !ok {
 				return fmt.Errorf("cannot read AllTypes.Sint64Field")
 			}
 			x.Sint64Field = v
 		case 9:
-
 			v, ok := fc.Bool()
 			if !ok {
 				return fmt.Errorf("cannot read AllTypes.BoolField")
 			}
 			x.BoolField = v
 		case 10:
-
 			v, ok := fc.Double()
 			if !ok {
 				return fmt.Errorf("cannot read AllTypes.DoubleField")
 			}
 			x.DoubleField = v
 		case 11:
-
 			v, ok := fc.Float()
 			if !ok {
 				return fmt.Errorf("cannot read AllTypes.FloatField")
 			}
 			x.FloatField = v
 		case 12:
-
 			v, ok := fc.Fixed32()
 			if !ok {
 				return fmt.Errorf("cannot read AllTypes.Fixed32Field")
 			}
 			x.Fixed32Field = v
 		case 13:
-
 			v, ok := fc.Fixed64()
 			if !ok {
 				return fmt.Errorf("cannot read AllTypes.Fixed64Field")
 			}
 			x.Fixed64Field = v
 		case 14:
-
 			v, ok := fc.Sfixed32()
 			if !ok {
 				return fmt.Errorf("cannot read AllTypes.Sfixed32Field")
 			}
 			x.Sfixed32Field = v
 		case 15:
-
 			v, ok := fc.Sfixed64()
 			if !ok {
 				return fmt.Errorf("cannot read AllTypes.Sfixed64Field")
@@ -337,8 +273,6 @@ func (x *AllTypes) UnmarshalProtobuf(src []byte) (err error) {
 }
 
 // MarshalProtobuf marshals OptionalFields into protobuf message, appends this message to dst and returns the result.
-//
-// This function doesn't allocate memory on repeated calls.
 func (x *OptionalFields) MarshalProtobuf(dst []byte) []byte {
 	m := _mp.Get()
 	x.MarshalProtobufTo(m.MessageMarshaler())
@@ -350,19 +284,15 @@ func (x *OptionalFields) MarshalProtobuf(dst []byte) []byte {
 // MarshalProtobufTo marshals OptionalFields fields to the given MessageMarshaler.
 // Implements ProtobufMarshaler interface.
 func (x *OptionalFields) MarshalProtobufTo(mm *easyproto.MessageMarshaler) {
-
 	if x.Name != nil {
 		mm.AppendString(1, *x.Name)
 	}
-
 	if x.Age != nil {
 		mm.AppendInt32(2, *x.Age)
 	}
-
 	if x.Score != nil {
 		mm.AppendDouble(3, *x.Score)
 	}
-
 	if x.IsActive != nil {
 		mm.AppendBool(4, *x.IsActive)
 	}
@@ -371,13 +301,9 @@ func (x *OptionalFields) MarshalProtobufTo(mm *easyproto.MessageMarshaler) {
 // UnmarshalProtobuf unmarshals OptionalFields from protobuf message at src.
 func (x *OptionalFields) UnmarshalProtobuf(src []byte) (err error) {
 	// Set default values
-
 	x.Name = nil
-
 	x.Age = nil
-
 	x.Score = nil
-
 	x.IsActive = nil
 
 	// Parse message
@@ -389,28 +315,24 @@ func (x *OptionalFields) UnmarshalProtobuf(src []byte) (err error) {
 		}
 		switch fc.FieldNum {
 		case 1:
-
 			v, ok := fc.String()
 			if !ok {
 				return fmt.Errorf("cannot read OptionalFields.Name")
 			}
 			x.Name = &v
 		case 2:
-
 			v, ok := fc.Int32()
 			if !ok {
 				return fmt.Errorf("cannot read OptionalFields.Age")
 			}
 			x.Age = &v
 		case 3:
-
 			v, ok := fc.Double()
 			if !ok {
 				return fmt.Errorf("cannot read OptionalFields.Score")
 			}
 			x.Score = &v
 		case 4:
-
 			v, ok := fc.Bool()
 			if !ok {
 				return fmt.Errorf("cannot read OptionalFields.IsActive")
@@ -422,8 +344,6 @@ func (x *OptionalFields) UnmarshalProtobuf(src []byte) (err error) {
 }
 
 // MarshalProtobuf marshals NestedMessage into protobuf message, appends this message to dst and returns the result.
-//
-// This function doesn't allocate memory on repeated calls.
 func (x *NestedMessage) MarshalProtobuf(dst []byte) []byte {
 	m := _mp.Get()
 	x.MarshalProtobufTo(m.MessageMarshaler())
@@ -435,15 +355,11 @@ func (x *NestedMessage) MarshalProtobuf(dst []byte) []byte {
 // MarshalProtobufTo marshals NestedMessage fields to the given MessageMarshaler.
 // Implements ProtobufMarshaler interface.
 func (x *NestedMessage) MarshalProtobufTo(mm *easyproto.MessageMarshaler) {
-
 	mm.AppendInt64(1, x.ID)
-
 	x.Outer.MarshalProtobufTo(mm.AppendMessage(2))
-
 	if x.Optional != nil {
 		x.Optional.MarshalProtobufTo(mm.AppendMessage(3))
 	}
-
 	for i := range x.Items {
 		x.Items[i].MarshalProtobufTo(mm.AppendMessage(4))
 	}
@@ -452,13 +368,9 @@ func (x *NestedMessage) MarshalProtobufTo(mm *easyproto.MessageMarshaler) {
 // UnmarshalProtobuf unmarshals NestedMessage from protobuf message at src.
 func (x *NestedMessage) UnmarshalProtobuf(src []byte) (err error) {
 	// Set default values
-
 	x.ID = *new(int64)
-
 	x.Outer = *new(Sample)
-
 	x.Optional = nil
-
 	x.Items = x.Items[:0]
 
 	// Parse message
@@ -470,14 +382,12 @@ func (x *NestedMessage) UnmarshalProtobuf(src []byte) (err error) {
 		}
 		switch fc.FieldNum {
 		case 1:
-
 			v, ok := fc.Int64()
 			if !ok {
 				return fmt.Errorf("cannot read NestedMessage.ID")
 			}
 			x.ID = v
 		case 2:
-
 			data, ok := fc.MessageData()
 			if !ok {
 				return fmt.Errorf("cannot read NestedMessage.Outer data")
@@ -486,7 +396,6 @@ func (x *NestedMessage) UnmarshalProtobuf(src []byte) (err error) {
 				return fmt.Errorf("cannot unmarshal NestedMessage.Outer: %w", err)
 			}
 		case 3:
-
 			data, ok := fc.MessageData()
 			if !ok {
 				return fmt.Errorf("cannot read NestedMessage.Optional data")
@@ -498,14 +407,12 @@ func (x *NestedMessage) UnmarshalProtobuf(src []byte) (err error) {
 				return fmt.Errorf("cannot unmarshal NestedMessage.Optional: %w", err)
 			}
 		case 4:
-
 			data, ok := fc.MessageData()
 			if !ok {
 				return fmt.Errorf("cannot read NestedMessage.Items data")
 			}
 			x.Items = append(x.Items, Sample{})
-			item := &x.Items[len(x.Items)-1]
-			if err := item.UnmarshalProtobuf(data); err != nil {
+			if err := x.Items[len(x.Items)-1].UnmarshalProtobuf(data); err != nil {
 				return fmt.Errorf("cannot unmarshal NestedMessage.Items: %w", err)
 			}
 		}
@@ -514,8 +421,6 @@ func (x *NestedMessage) UnmarshalProtobuf(src []byte) (err error) {
 }
 
 // MarshalProtobuf marshals WithPointers into protobuf message, appends this message to dst and returns the result.
-//
-// This function doesn't allocate memory on repeated calls.
 func (x *WithPointers) MarshalProtobuf(dst []byte) []byte {
 	m := _mp.Get()
 	x.MarshalProtobufTo(m.MessageMarshaler())
@@ -527,12 +432,10 @@ func (x *WithPointers) MarshalProtobuf(dst []byte) []byte {
 // MarshalProtobufTo marshals WithPointers fields to the given MessageMarshaler.
 // Implements ProtobufMarshaler interface.
 func (x *WithPointers) MarshalProtobufTo(mm *easyproto.MessageMarshaler) {
-
 	mm.AppendInt64(1, x.ID)
-
-	for _, item := range x.Samples {
-		if item != nil {
-			item.MarshalProtobufTo(mm.AppendMessage(2))
+	for _, v := range x.Samples {
+		if v != nil {
+			v.MarshalProtobufTo(mm.AppendMessage(2))
 		}
 	}
 }
@@ -540,9 +443,7 @@ func (x *WithPointers) MarshalProtobufTo(mm *easyproto.MessageMarshaler) {
 // UnmarshalProtobuf unmarshals WithPointers from protobuf message at src.
 func (x *WithPointers) UnmarshalProtobuf(src []byte) (err error) {
 	// Set default values
-
 	x.ID = *new(int64)
-
 	x.Samples = x.Samples[:0]
 
 	// Parse message
@@ -554,14 +455,12 @@ func (x *WithPointers) UnmarshalProtobuf(src []byte) (err error) {
 		}
 		switch fc.FieldNum {
 		case 1:
-
 			v, ok := fc.Int64()
 			if !ok {
 				return fmt.Errorf("cannot read WithPointers.ID")
 			}
 			x.ID = v
 		case 2:
-
 			data, ok := fc.MessageData()
 			if !ok {
 				return fmt.Errorf("cannot read WithPointers.Samples data")
@@ -577,8 +476,6 @@ func (x *WithPointers) UnmarshalProtobuf(src []byte) (err error) {
 }
 
 // MarshalProtobuf marshals WithEnums into protobuf message, appends this message to dst and returns the result.
-//
-// This function doesn't allocate memory on repeated calls.
 func (x *WithEnums) MarshalProtobuf(dst []byte) []byte {
 	m := _mp.Get()
 	x.MarshalProtobufTo(m.MessageMarshaler())
@@ -590,15 +487,11 @@ func (x *WithEnums) MarshalProtobuf(dst []byte) []byte {
 // MarshalProtobufTo marshals WithEnums fields to the given MessageMarshaler.
 // Implements ProtobufMarshaler interface.
 func (x *WithEnums) MarshalProtobufTo(mm *easyproto.MessageMarshaler) {
-
 	mm.AppendInt64(1, x.ID)
-
 	mm.AppendInt32(2, int32(x.Status))
-
 	if x.OptStatus != nil {
 		mm.AppendInt32(3, int32(*x.OptStatus))
 	}
-
 	for _, v := range x.Statuses {
 		mm.AppendInt32(4, int32(v))
 	}
@@ -607,13 +500,9 @@ func (x *WithEnums) MarshalProtobufTo(mm *easyproto.MessageMarshaler) {
 // UnmarshalProtobuf unmarshals WithEnums from protobuf message at src.
 func (x *WithEnums) UnmarshalProtobuf(src []byte) (err error) {
 	// Set default values
-
 	x.ID = *new(int64)
-
 	x.Status = 0
-
 	x.OptStatus = nil
-
 	x.Statuses = x.Statuses[:0]
 
 	// Parse message
@@ -625,21 +514,18 @@ func (x *WithEnums) UnmarshalProtobuf(src []byte) (err error) {
 		}
 		switch fc.FieldNum {
 		case 1:
-
 			v, ok := fc.Int64()
 			if !ok {
 				return fmt.Errorf("cannot read WithEnums.ID")
 			}
 			x.ID = v
 		case 2:
-
 			v, ok := fc.Int32()
 			if !ok {
 				return fmt.Errorf("cannot read WithEnums.Status")
 			}
 			x.Status = Status(v)
 		case 3:
-
 			v, ok := fc.Int32()
 			if !ok {
 				return fmt.Errorf("cannot read WithEnums.OptStatus")
@@ -647,7 +533,6 @@ func (x *WithEnums) UnmarshalProtobuf(src []byte) (err error) {
 			tmp := Status(v)
 			x.OptStatus = &tmp
 		case 4:
-
 			if v, ok := fc.Int32(); ok {
 				x.Statuses = append(x.Statuses, Status(v))
 			} else {
@@ -659,8 +544,6 @@ func (x *WithEnums) UnmarshalProtobuf(src []byte) (err error) {
 }
 
 // MarshalProtobuf marshals RepeatedScalars into protobuf message, appends this message to dst and returns the result.
-//
-// This function doesn't allocate memory on repeated calls.
 func (x *RepeatedScalars) MarshalProtobuf(dst []byte) []byte {
 	m := _mp.Get()
 	x.MarshalProtobufTo(m.MessageMarshaler())
@@ -672,62 +555,36 @@ func (x *RepeatedScalars) MarshalProtobuf(dst []byte) []byte {
 // MarshalProtobufTo marshals RepeatedScalars fields to the given MessageMarshaler.
 // Implements ProtobufMarshaler interface.
 func (x *RepeatedScalars) MarshalProtobufTo(mm *easyproto.MessageMarshaler) {
-
 	mm.AppendInt32s(1, x.Int32s)
-
 	mm.AppendInt64s(2, x.Int64s)
-
 	mm.AppendUint32s(3, x.Uint32s)
-
 	mm.AppendUint64s(4, x.Uint64s)
-
 	mm.AppendSint32s(5, x.Sint32s)
-
 	mm.AppendSint64s(6, x.Sint64s)
-
 	mm.AppendBools(7, x.Bools)
-
 	mm.AppendDoubles(8, x.Doubles)
-
 	mm.AppendFloats(9, x.Floats)
-
 	mm.AppendFixed32s(10, x.Fixed32s)
-
 	mm.AppendFixed64s(11, x.Fixed64s)
-
 	mm.AppendSfixed32s(12, x.Sfixed32s)
-
 	mm.AppendSfixed64s(13, x.Sfixed64s)
 }
 
 // UnmarshalProtobuf unmarshals RepeatedScalars from protobuf message at src.
 func (x *RepeatedScalars) UnmarshalProtobuf(src []byte) (err error) {
 	// Set default values
-
 	x.Int32s = x.Int32s[:0]
-
 	x.Int64s = x.Int64s[:0]
-
 	x.Uint32s = x.Uint32s[:0]
-
 	x.Uint64s = x.Uint64s[:0]
-
 	x.Sint32s = x.Sint32s[:0]
-
 	x.Sint64s = x.Sint64s[:0]
-
 	x.Bools = x.Bools[:0]
-
 	x.Doubles = x.Doubles[:0]
-
 	x.Floats = x.Floats[:0]
-
 	x.Fixed32s = x.Fixed32s[:0]
-
 	x.Fixed64s = x.Fixed64s[:0]
-
 	x.Sfixed32s = x.Sfixed32s[:0]
-
 	x.Sfixed64s = x.Sfixed64s[:0]
 
 	// Parse message
@@ -739,91 +596,78 @@ func (x *RepeatedScalars) UnmarshalProtobuf(src []byte) (err error) {
 		}
 		switch fc.FieldNum {
 		case 1:
-
 			var ok bool
 			x.Int32s, ok = fc.UnpackInt32s(x.Int32s)
 			if !ok {
 				return fmt.Errorf("cannot read RepeatedScalars.Int32s")
 			}
 		case 2:
-
 			var ok bool
 			x.Int64s, ok = fc.UnpackInt64s(x.Int64s)
 			if !ok {
 				return fmt.Errorf("cannot read RepeatedScalars.Int64s")
 			}
 		case 3:
-
 			var ok bool
 			x.Uint32s, ok = fc.UnpackUint32s(x.Uint32s)
 			if !ok {
 				return fmt.Errorf("cannot read RepeatedScalars.Uint32s")
 			}
 		case 4:
-
 			var ok bool
 			x.Uint64s, ok = fc.UnpackUint64s(x.Uint64s)
 			if !ok {
 				return fmt.Errorf("cannot read RepeatedScalars.Uint64s")
 			}
 		case 5:
-
 			var ok bool
 			x.Sint32s, ok = fc.UnpackSint32s(x.Sint32s)
 			if !ok {
 				return fmt.Errorf("cannot read RepeatedScalars.Sint32s")
 			}
 		case 6:
-
 			var ok bool
 			x.Sint64s, ok = fc.UnpackSint64s(x.Sint64s)
 			if !ok {
 				return fmt.Errorf("cannot read RepeatedScalars.Sint64s")
 			}
 		case 7:
-
 			var ok bool
 			x.Bools, ok = fc.UnpackBools(x.Bools)
 			if !ok {
 				return fmt.Errorf("cannot read RepeatedScalars.Bools")
 			}
 		case 8:
-
 			var ok bool
 			x.Doubles, ok = fc.UnpackDoubles(x.Doubles)
 			if !ok {
 				return fmt.Errorf("cannot read RepeatedScalars.Doubles")
 			}
 		case 9:
-
 			var ok bool
 			x.Floats, ok = fc.UnpackFloats(x.Floats)
 			if !ok {
 				return fmt.Errorf("cannot read RepeatedScalars.Floats")
 			}
 		case 10:
-
 			var ok bool
 			x.Fixed32s, ok = fc.UnpackFixed32s(x.Fixed32s)
 			if !ok {
 				return fmt.Errorf("cannot read RepeatedScalars.Fixed32s")
 			}
 		case 11:
-
 			var ok bool
 			x.Fixed64s, ok = fc.UnpackFixed64s(x.Fixed64s)
 			if !ok {
 				return fmt.Errorf("cannot read RepeatedScalars.Fixed64s")
 			}
 		case 12:
-
 			var ok bool
 			x.Sfixed32s, ok = fc.UnpackSfixed32s(x.Sfixed32s)
 			if !ok {
 				return fmt.Errorf("cannot read RepeatedScalars.Sfixed32s")
 			}
 		case 13:
-
 			var ok bool
 			x.Sfixed64s, ok = fc.UnpackSfixed64s(x.Sfixed64s)
 			if !ok {
@@ -835,8 +679,6 @@ func (x *RepeatedScalars) UnmarshalProtobuf(src []byte) (err error) {
 }
 
 // MarshalProtobuf marshals RepeatedStringsBytes into protobuf message, appends this message to dst and returns the result.
-//
-// This function doesn't allocate memory on repeated calls.
 func (x *RepeatedStringsBytes) MarshalProtobuf(dst []byte) []byte {
 	m := _mp.Get()
 	x.MarshalProtobufTo(m.MessageMarshaler())
@@ -848,11 +690,9 @@ func (x *RepeatedStringsBytes) MarshalProtobuf(dst []byte) []byte {
 // MarshalProtobufTo marshals RepeatedStringsBytes fields to the given MessageMarshaler.
 // Implements ProtobufMarshaler interface.
 func (x *RepeatedStringsBytes) MarshalProtobufTo(mm *easyproto.MessageMarshaler) {
-
 	for _, v := range x.Strings {
 		mm.AppendString(1, v)
 	}
-
 	for _, v := range x.Blobs {
 		mm.AppendBytes(2, v)
 	}
@@ -861,9 +701,7 @@ func (x *RepeatedStringsBytes) MarshalProtobufTo(mm *easyproto.MessageMarshaler)
 // UnmarshalProtobuf unmarshals RepeatedStringsBytes from protobuf message at src.
 func (x *RepeatedStringsBytes) UnmarshalProtobuf(src []byte) (err error) {
 	// Set default values
-
 	x.Strings = x.Strings[:0]
-
 	x.Blobs = x.Blobs[:0]
 
 	// Parse message
@@ -875,14 +713,12 @@ func (x *RepeatedStringsBytes) UnmarshalProtobuf(src []byte) (err error) {
 		}
 		switch fc.FieldNum {
 		case 1:
-
 			v, ok := fc.String()
 			if !ok {
 				return fmt.Errorf("cannot read RepeatedStringsBytes.Strings")
 			}
 			x.Strings = append(x.Strings, v)
 		case 2:
-
 			v, ok := fc.Bytes()
 			if !ok {
 				return fmt.Errorf("cannot read RepeatedStringsBytes.Blobs")
@@ -894,8 +730,6 @@ func (x *RepeatedStringsBytes) UnmarshalProtobuf(src []byte) (err error) {
 }
 
 // MarshalProtobuf marshals WithMaps into protobuf message, appends this message to dst and returns the result.
-//
-// This function doesn't allocate memory on repeated calls.
 func (x *WithMaps) MarshalProtobuf(dst []byte) []byte {
 	m := _mp.Get()
 	x.MarshalProtobufTo(m.MessageMarshaler())
@@ -907,19 +741,16 @@ func (x *WithMaps) MarshalProtobuf(dst []byte) []byte {
 // MarshalProtobufTo marshals WithMaps fields to the given MessageMarshaler.
 // Implements ProtobufMarshaler interface.
 func (x *WithMaps) MarshalProtobufTo(mm *easyproto.MessageMarshaler) {
-
 	for k, v := range x.StringToInt {
 		mm2 := mm.AppendMessage(1)
 		mm2.AppendString(1, k)
 		mm2.AppendInt32(2, v)
 	}
-
 	for k, v := range x.IntToString {
 		mm2 := mm.AppendMessage(2)
 		mm2.AppendInt64(1, k)
 		mm2.AppendString(2, v)
 	}
-
 	for k, v := range x.StringToMsg {
 		mm2 := mm.AppendMessage(3)
 		mm2.AppendString(1, k)
@@ -932,15 +763,12 @@ func (x *WithMaps) MarshalProtobufTo(mm *easyproto.MessageMarshaler) {
 // UnmarshalProtobuf unmarshals WithMaps from protobuf message at src.
 func (x *WithMaps) UnmarshalProtobuf(src []byte) (err error) {
 	// Set default values
-
 	for k := range x.StringToInt {
 		delete(x.StringToInt, k)
 	}
-
 	for k := range x.IntToString {
 		delete(x.IntToString, k)
 	}
-
 	for k := range x.StringToMsg {
 		delete(x.StringToMsg, k)
 	}
@@ -954,7 +782,6 @@ func (x *WithMaps) UnmarshalProtobuf(src []byte) (err error) {
 		}
 		switch fc.FieldNum {
 		case 1:
-
 			data, ok := fc.MessageData()
 			if !ok {
 				return fmt.Errorf("cannot read WithMaps.StringToInt data")
@@ -987,7 +814,6 @@ func (x *WithMaps) UnmarshalProtobuf(src []byte) (err error) {
 			}
 			x.StringToInt[mk] = mv
 		case 2:
-
 			data, ok := fc.MessageData()
 			if !ok {
 				return fmt.Errorf("cannot read WithMaps.IntToString data")
@@ -1020,7 +846,6 @@ func (x *WithMaps) UnmarshalProtobuf(src []byte) (err error) {
 			}
 			x.IntToString[mk] = mv
 		case 3:
-
 			data, ok := fc.MessageData()
 			if !ok {
 				return fmt.Errorf("cannot read WithMaps.StringToMsg data")
@@ -1061,8 +886,6 @@ func (x *WithMaps) UnmarshalProtobuf(src []byte) (err error) {
 }
 
 // MarshalProtobuf marshals InferredTypes into protobuf message, appends this message to dst and returns the result.
-//
-// This function doesn't allocate memory on repeated calls.
 func (x *InferredTypes) MarshalProtobuf(dst []byte) []byte {
 	m := _mp.Get()
 	x.MarshalProtobufTo(m.MessageMarshaler())
@@ -1074,72 +897,46 @@ func (x *InferredTypes) MarshalProtobuf(dst []byte) []byte {
 // MarshalProtobufTo marshals InferredTypes fields to the given MessageMarshaler.
 // Implements ProtobufMarshaler interface.
 func (x *InferredTypes) MarshalProtobufTo(mm *easyproto.MessageMarshaler) {
-
 	mm.AppendString(1, x.Name)
-
 	mm.AppendInt32(2, x.Age)
-
 	mm.AppendDouble(3, x.Score)
-
 	mm.AppendBool(4, x.IsActive)
-
 	mm.AppendBytes(5, x.Data)
-
 	mm.AppendInt64(6, x.BigNum)
-
 	mm.AppendFloat(7, x.SmallNum)
-
 	mm.AppendUint32(8, x.Unsigned)
-
 	mm.AppendUint64(9, x.BigUnsign)
-
 	if x.Inner != nil {
 		x.Inner.MarshalProtobufTo(mm.AppendMessage(10))
 	}
-
 	for i := range x.Items {
 		x.Items[i].MarshalProtobufTo(mm.AppendMessage(11))
 	}
-
 	for k, v := range x.Lookup {
 		mm2 := mm.AppendMessage(12)
 		mm2.AppendString(1, k)
 		mm2.AppendInt32(2, v)
 	}
-
 	mm.AppendInt64s(13, x.Numbers)
 }
 
 // UnmarshalProtobuf unmarshals InferredTypes from protobuf message at src.
 func (x *InferredTypes) UnmarshalProtobuf(src []byte) (err error) {
 	// Set default values
-
 	x.Name = *new(string)
-
 	x.Age = *new(int32)
-
 	x.Score = *new(float64)
-
 	x.IsActive = *new(bool)
-
 	x.Data = *new([]byte)
-
 	x.BigNum = *new(int64)
-
 	x.SmallNum = *new(float32)
-
 	x.Unsigned = *new(uint32)
-
 	x.BigUnsign = *new(uint64)
-
 	x.Inner = nil
-
 	x.Items = x.Items[:0]
-
 	for k := range x.Lookup {
 		delete(x.Lookup, k)
 	}
-
 	x.Numbers = x.Numbers[:0]
 
 	// Parse message
@@ -1151,70 +948,60 @@ func (x *InferredTypes) UnmarshalProtobuf(src []byte) (err error) {
 		}
 		switch fc.FieldNum {
 		case 1:
-
 			v, ok := fc.String()
 			if !ok {
 				return fmt.Errorf("cannot read InferredTypes.Name")
 			}
 			x.Name = v
 		case 2:
-
 			v, ok := fc.Int32()
 			if !ok {
 				return fmt.Errorf("cannot read InferredTypes.Age")
 			}
 			x.Age = v
 		case 3:
-
 			v, ok := fc.Double()
 			if !ok {
 				return fmt.Errorf("cannot read InferredTypes.Score")
 			}
 			x.Score = v
 		case 4:
-
 			v, ok := fc.Bool()
 			if !ok {
 				return fmt.Errorf("cannot read InferredTypes.IsActive")
 			}
 			x.IsActive = v
 		case 5:
-
 			v, ok := fc.Bytes()
 			if !ok {
 				return fmt.Errorf("cannot read InferredTypes.Data")
 			}
 			x.Data = v
 		case 6:
-
 			v, ok := fc.Int64()
 			if !ok {
 				return fmt.Errorf("cannot read InferredTypes.BigNum")
 			}
 			x.BigNum = v
 		case 7:
-
 			v, ok := fc.Float()
 			if !ok {
 				return fmt.Errorf("cannot read InferredTypes.SmallNum")
 			}
 			x.SmallNum = v
 		case 8:
-
 			v, ok := fc.Uint32()
 			if !ok {
 				return fmt.Errorf("cannot read InferredTypes.Unsigned")
 			}
 			x.Unsigned = v
 		case 9:
-
 			v, ok := fc.Uint64()
 			if !ok {
 				return fmt.Errorf("cannot read InferredTypes.BigUnsign")
 			}
 			x.BigUnsign = v
 		case 10:
-
 			data, ok := fc.MessageData()
 			if !ok {
 				return fmt.Errorf("cannot read InferredTypes.Inner data")
@@ -1226,18 +1013,15 @@ func (x *InferredTypes) UnmarshalProtobuf(src []byte) (err error) {
 				return fmt.Errorf("cannot unmarshal InferredTypes.Inner: %w", err)
 			}
 		case 11:
-
 			data, ok := fc.MessageData()
 			if !ok {
 				return fmt.Errorf("cannot read InferredTypes.Items data")
 			}
 			x.Items = append(x.Items, Sample{})
-			item := &x.Items[len(x.Items)-1]
-			if err := item.UnmarshalProtobuf(data); err != nil {
+			if err := x.Items[len(x.Items)-1].UnmarshalProtobuf(data); err != nil {
 				return fmt.Errorf("cannot unmarshal InferredTypes.Items: %w", err)
 			}
 		case 12:
-
 			data, ok := fc.MessageData()
 			if !ok {
 				return fmt.Errorf("cannot read InferredTypes.Lookup data")
@@ -1270,7 +1054,6 @@ func (x *InferredTypes) UnmarshalProtobuf(src []byte) (err error) {
 			}
 			x.Lookup[mk] = mv
 		case 13:
-
 			var ok bool
 			x.Numbers, ok = fc.UnpackInt64s(x.Numbers)
 			if !ok {
@@ -1282,8 +1065,6 @@ func (x *InferredTypes) UnmarshalProtobuf(src []byte) (err error) {
 }
 
 // MarshalProtobuf marshals BigStruct into protobuf message, appends this message to dst and returns the result.
-//
-// This function doesn't allocate memory on repeated calls.
 func (x *BigStruct) MarshalProtobuf(dst []byte) []byte {
 	m := _mp.Get()
 	x.MarshalProtobufTo(m.MessageMarshaler())
@@ -1295,42 +1076,26 @@ func (x *BigStruct) MarshalProtobuf(dst []byte) []byte {
 // MarshalProtobufTo marshals BigStruct fields to the given MessageMarshaler.
 // Implements ProtobufMarshaler interface.
 func (x *BigStruct) MarshalProtobufTo(mm *easyproto.MessageMarshaler) {
-
 	mm.AppendString(1, x.Field1)
-
 	mm.AppendInt32(2, x.Field2)
-
 	mm.AppendInt64(3, x.Field3)
-
 	mm.AppendBool(4, x.Field4)
-
 	mm.AppendDouble(5, x.Field5)
-
 	x.Series.MarshalProtobufTo(mm.AppendMessage(50))
-
 	mm.AppendString(51, x.Field51)
-
 	mm.AppendInt32(52, x.Field52)
 }
 
 // UnmarshalProtobuf unmarshals BigStruct from protobuf message at src.
 func (x *BigStruct) UnmarshalProtobuf(src []byte) (err error) {
 	// Set default values
-
 	x.Field1 = *new(string)
-
 	x.Field2 = *new(int32)
-
 	x.Field3 = *new(int64)
-
 	x.Field4 = *new(bool)
-
 	x.Field5 = *new(float64)
-
 	x.Series = *new(Timeseries)
-
 	x.Field51 = *new(string)
-
 	x.Field52 = *new(int32)
 
 	// Parse message
@@ -1342,42 +1107,36 @@ func (x *BigStruct) UnmarshalProtobuf(src []byte) (err error) {
 		}
 		switch fc.FieldNum {
 		case 1:
-
 			v, ok := fc.String()
 			if !ok {
 				return fmt.Errorf("cannot read BigStruct.Field1")
 			}
 			x.Field1 = v
 		case 2:
-
 			v, ok := fc.Int32()
 			if !ok {
 				return fmt.Errorf("cannot read BigStruct.Field2")
 			}
 			x.Field2 = v
 		case 3:
-
 			v, ok := fc.Int64()
 			if !ok {
 				return fmt.Errorf("cannot read BigStruct.Field3")
 			}
 			x.Field3 = v
 		case 4:
-
 			v, ok := fc.Bool()
 			if !ok {
 				return fmt.Errorf("cannot read BigStruct.Field4")
 			}
 			x.Field4 = v
 		case 5:
-
 			v, ok := fc.Double()
 			if !ok {
 				return fmt.Errorf("cannot read BigStruct.Field5")
 			}
 			x.Field5 = v
 		case 50:
-
 			data, ok := fc.MessageData()
 			if !ok {
 				return fmt.Errorf("cannot read BigStruct.Series data")
@@ -1386,14 +1145,12 @@ func (x *BigStruct) UnmarshalProtobuf(src []byte) (err error) {
 				return fmt.Errorf("cannot unmarshal BigStruct.Series: %w", err)
 			}
 		case 51:
-
 			v, ok := fc.String()
 			if !ok {
 				return fmt.Errorf("cannot read BigStruct.Field51")
 			}
 			x.Field51 = v
 		case 52:
-
 			v, ok := fc.Int32()
 			if !ok {
 				return fmt.Errorf("cannot read BigStruct.Field52")
@@ -1405,8 +1162,6 @@ func (x *BigStruct) UnmarshalProtobuf(src []byte) (err error) {
 }
 
 // MarshalProtobuf marshals SmallStruct into protobuf message, appends this message to dst and returns the result.
-//
-// This function doesn't allocate memory on repeated calls.
 func (x *SmallStruct) MarshalProtobuf(dst []byte) []byte {
 	m := _mp.Get()
 	x.MarshalProtobufTo(m.MessageMarshaler())
@@ -1418,18 +1173,14 @@ func (x *SmallStruct) MarshalProtobuf(dst []byte) []byte {
 // MarshalProtobufTo marshals SmallStruct fields to the given MessageMarshaler.
 // Implements ProtobufMarshaler interface.
 func (x *SmallStruct) MarshalProtobufTo(mm *easyproto.MessageMarshaler) {
-
 	mm.AppendString(1, x.Name)
-
 	x.Series.MarshalProtobufTo(mm.AppendMessage(2))
 }
 
 // UnmarshalProtobuf unmarshals SmallStruct from protobuf message at src.
 func (x *SmallStruct) UnmarshalProtobuf(src []byte) (err error) {
 	// Set default values
-
 	x.Name = *new(string)
-
 	x.Series = *new(Timeseries)
 
 	// Parse message
@@ -1441,14 +1192,12 @@ func (x *SmallStruct) UnmarshalProtobuf(src []byte) (err error) {
 		}
 		switch fc.FieldNum {
 		case 1:
-
 			v, ok := fc.String()
 			if !ok {
 				return fmt.Errorf("cannot read SmallStruct.Name")
 			}
 			x.Name = v
 		case 2:
-
 			data, ok := fc.MessageData()
 			if !ok {
 				return fmt.Errorf("cannot read SmallStruct.Series data")
