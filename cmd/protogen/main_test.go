@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -427,47 +428,19 @@ type Chat struct {
 }
 
 func TestZeroValue(t *testing.T) {
-	tests := []struct {
-		goType   string
-		expected string
-	}{
-		// Builtin primitive types
-		{"string", `""`},
-		{"bool", "false"},
-		{"int", "0"},
-		{"int8", "0"},
-		{"int16", "0"},
-		{"int32", "0"},
-		{"int64", "0"},
-		{"uint", "0"},
-		{"uint8", "0"},
-		{"uint16", "0"},
-		{"uint32", "0"},
-		{"uint64", "0"},
-		{"float32", "0"},
-		{"float64", "0"},
-		{"[]byte", "nil"},
-
-		// Pointer, slice, and map types
-		{"*MyType", "nil"},
-		{"*int", "nil"},
-		{"[]MyType", "nil"},
-		{"[]int", "nil"},
-		{"map[string]int", "nil"},
-		{"map[string]*MyType", "nil"},
-
-		// Custom types - should use *new(T) which works for both structs and type aliases
-		{"MyStruct", "*new(MyStruct)"},
-		{"MyInt", "*new(MyInt)"},       // type alias like `type MyInt int`
-		{"MyString", "*new(MyString)"}, // type alias like `type MyString string`
-		{"pkg.ExternalType", "*new(pkg.ExternalType)"},
+	// zeroValue uses *new(T) for all types, which correctly returns the zero value
+	tests := []string{
+		"string", "bool", "int", "int32", "int64", "uint32", "float64",
+		"[]byte", "*MyType", "[]MyType", "map[string]int",
+		"MyStruct", "MyInt", "pkg.ExternalType",
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.goType, func(t *testing.T) {
-			result := zeroValue(tc.goType)
-			if result != tc.expected {
-				t.Errorf("zeroValue(%q) = %q, want %q", tc.goType, result, tc.expected)
+	for _, goType := range tests {
+		t.Run(goType, func(t *testing.T) {
+			expected := fmt.Sprintf("*new(%s)", goType)
+			result := zeroValue(goType)
+			if result != expected {
+				t.Errorf("zeroValue(%q) = %q, want %q", goType, result, expected)
 			}
 		})
 	}

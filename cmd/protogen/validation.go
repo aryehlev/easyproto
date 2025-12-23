@@ -30,14 +30,18 @@ var validProtoTypes = map[string]bool{
 
 // validMapKeyTypes is the set of valid protobuf map key types
 var validMapKeyTypes = map[string]bool{
-	"string": true,
-	"int32":  true,
-	"int64":  true,
-	"uint32": true,
-	"uint64": true,
-	"sint32": true,
-	"sint64": true,
-	"bool":   true,
+	"string":   true,
+	"int32":    true,
+	"int64":    true,
+	"uint32":   true,
+	"uint64":   true,
+	"sint32":   true,
+	"sint64":   true,
+	"fixed32":  true,
+	"fixed64":  true,
+	"sfixed32": true,
+	"sfixed64": true,
+	"bool":     true,
 	// Note: float/double and bytes are NOT valid map key types in protobuf
 }
 

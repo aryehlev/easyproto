@@ -30,9 +30,6 @@ func parseStruct(typeName string, structType *ast.StructType) (*TypeInfo, error)
 		}
 
 		parts := strings.Split(protoTag, ",")
-		if len(parts) < 1 {
-			return nil, fmt.Errorf("invalid protobuf tag format: %s", protoTag)
-		}
 
 		// Check for oneof tag format: `protobuf:"oneof,TypeA:1,TypeB:2"`
 		isOneof := strings.TrimSpace(parts[0]) == "oneof"
