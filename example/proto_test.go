@@ -783,3 +783,380 @@ func TestWeirdTypes(t *testing.T) {
 	}
 	t.Logf("all3 (type aliases, maps, slices): encoded size %d bytes", len(all3Data))
 }
+
+// TestOneofTextMessage tests oneof with TextMessage variant
+func TestOneofTextMessage(t *testing.T) {
+	original := &ChatMessage{
+		ID: 123,
+		Content: &TextMessage{
+			Text:   "Hello, world!",
+			Author: "Alice",
+		},
+	}
+
+	data := original.MarshalProtobuf(nil)
+	t.Logf("ChatMessage with TextMessage: encoded size %d bytes", len(data))
+
+	decoded := &ChatMessage{}
+	if err := decoded.UnmarshalProtobuf(data); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+
+	if decoded.ID != original.ID {
+		t.Errorf("ID mismatch: got %d, want %d", decoded.ID, original.ID)
+	}
+
+	textMsg, ok := decoded.Content.(*TextMessage)
+	if !ok {
+		t.Fatalf("Content type mismatch: got %T, want *TextMessage", decoded.Content)
+	}
+	if textMsg.Text != "Hello, world!" {
+		t.Errorf("Text mismatch: got %q, want %q", textMsg.Text, "Hello, world!")
+	}
+	if textMsg.Author != "Alice" {
+		t.Errorf("Author mismatch: got %q, want %q", textMsg.Author, "Alice")
+	}
+}
+
+// TestOneofImageMessage tests oneof with ImageMessage variant
+func TestOneofImageMessage(t *testing.T) {
+	original := &ChatMessage{
+		ID: 456,
+		Content: &ImageMessage{
+			URL:    "https://example.com/image.png",
+			Width:  1920,
+			Height: 1080,
+		},
+	}
+
+	data := original.MarshalProtobuf(nil)
+	t.Logf("ChatMessage with ImageMessage: encoded size %d bytes", len(data))
+
+	decoded := &ChatMessage{}
+	if err := decoded.UnmarshalProtobuf(data); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+
+	if decoded.ID != original.ID {
+		t.Errorf("ID mismatch: got %d, want %d", decoded.ID, original.ID)
+	}
+
+	imgMsg, ok := decoded.Content.(*ImageMessage)
+	if !ok {
+		t.Fatalf("Content type mismatch: got %T, want *ImageMessage", decoded.Content)
+	}
+	if imgMsg.URL != "https://example.com/image.png" {
+		t.Errorf("URL mismatch: got %q", imgMsg.URL)
+	}
+	if imgMsg.Width != 1920 {
+		t.Errorf("Width mismatch: got %d, want %d", imgMsg.Width, 1920)
+	}
+	if imgMsg.Height != 1080 {
+		t.Errorf("Height mismatch: got %d, want %d", imgMsg.Height, 1080)
+	}
+}
+
+// TestOneofVideoMessage tests oneof with VideoMessage variant
+func TestOneofVideoMessage(t *testing.T) {
+	original := &ChatMessage{
+		ID: 789,
+		Content: &VideoMessage{
+			URL:      "https://example.com/video.mp4",
+			Duration: 3600000, // 1 hour in milliseconds
+		},
+	}
+
+	data := original.MarshalProtobuf(nil)
+	t.Logf("ChatMessage with VideoMessage: encoded size %d bytes", len(data))
+
+	decoded := &ChatMessage{}
+	if err := decoded.UnmarshalProtobuf(data); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+
+	if decoded.ID != original.ID {
+		t.Errorf("ID mismatch: got %d, want %d", decoded.ID, original.ID)
+	}
+
+	vidMsg, ok := decoded.Content.(*VideoMessage)
+	if !ok {
+		t.Fatalf("Content type mismatch: got %T, want *VideoMessage", decoded.Content)
+	}
+	if vidMsg.URL != "https://example.com/video.mp4" {
+		t.Errorf("URL mismatch: got %q", vidMsg.URL)
+	}
+	if vidMsg.Duration != 3600000 {
+		t.Errorf("Duration mismatch: got %d, want %d", vidMsg.Duration, 3600000)
+	}
+}
+
+// TestOneofNilContent tests oneof with nil content
+func TestOneofNilContent(t *testing.T) {
+	original := &ChatMessage{
+		ID:      999,
+		Content: nil, // No content set
+	}
+
+	data := original.MarshalProtobuf(nil)
+	t.Logf("ChatMessage with nil Content: encoded size %d bytes", len(data))
+
+	decoded := &ChatMessage{}
+	if err := decoded.UnmarshalProtobuf(data); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+
+	if decoded.ID != original.ID {
+		t.Errorf("ID mismatch: got %d, want %d", decoded.ID, original.ID)
+	}
+
+	if decoded.Content != nil {
+		t.Errorf("Content should be nil, got %T", decoded.Content)
+	}
+}
+
+// TestOneofChatHistory tests a slice of messages with different oneof variants
+func TestOneofChatHistory(t *testing.T) {
+	original := &ChatHistory{
+		Title: "My Chat",
+		Messages: []*ChatMessage{
+			{
+				ID: 1,
+				Content: &TextMessage{
+					Text:   "Hello!",
+					Author: "Alice",
+				},
+			},
+			{
+				ID: 2,
+				Content: &ImageMessage{
+					URL:    "https://example.com/photo.jpg",
+					Width:  800,
+					Height: 600,
+				},
+			},
+			{
+				ID: 3,
+				Content: &VideoMessage{
+					URL:      "https://example.com/clip.mp4",
+					Duration: 30000,
+				},
+			},
+			{
+				ID:      4,
+				Content: nil, // Empty message
+			},
+		},
+	}
+
+	data := original.MarshalProtobuf(nil)
+	t.Logf("ChatHistory with mixed messages: encoded size %d bytes", len(data))
+
+	decoded := &ChatHistory{}
+	if err := decoded.UnmarshalProtobuf(data); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+
+	if decoded.Title != original.Title {
+		t.Errorf("Title mismatch: got %q, want %q", decoded.Title, original.Title)
+	}
+
+	if len(decoded.Messages) != len(original.Messages) {
+		t.Fatalf("Messages count mismatch: got %d, want %d", len(decoded.Messages), len(original.Messages))
+	}
+
+	// Check message 1 - TextMessage
+	if decoded.Messages[0].ID != 1 {
+		t.Errorf("Message 0 ID mismatch")
+	}
+	text1, ok := decoded.Messages[0].Content.(*TextMessage)
+	if !ok {
+		t.Errorf("Message 0 Content type mismatch: got %T", decoded.Messages[0].Content)
+	} else if text1.Text != "Hello!" || text1.Author != "Alice" {
+		t.Errorf("Message 0 TextMessage content mismatch")
+	}
+
+	// Check message 2 - ImageMessage
+	if decoded.Messages[1].ID != 2 {
+		t.Errorf("Message 1 ID mismatch")
+	}
+	img2, ok := decoded.Messages[1].Content.(*ImageMessage)
+	if !ok {
+		t.Errorf("Message 1 Content type mismatch: got %T", decoded.Messages[1].Content)
+	} else if img2.URL != "https://example.com/photo.jpg" || img2.Width != 800 || img2.Height != 600 {
+		t.Errorf("Message 1 ImageMessage content mismatch")
+	}
+
+	// Check message 3 - VideoMessage
+	if decoded.Messages[2].ID != 3 {
+		t.Errorf("Message 2 ID mismatch")
+	}
+	vid3, ok := decoded.Messages[2].Content.(*VideoMessage)
+	if !ok {
+		t.Errorf("Message 2 Content type mismatch: got %T", decoded.Messages[2].Content)
+	} else if vid3.URL != "https://example.com/clip.mp4" || vid3.Duration != 30000 {
+		t.Errorf("Message 2 VideoMessage content mismatch")
+	}
+
+	// Check message 4 - nil Content
+	if decoded.Messages[3].ID != 4 {
+		t.Errorf("Message 3 ID mismatch")
+	}
+	if decoded.Messages[3].Content != nil {
+		t.Errorf("Message 3 Content should be nil, got %T", decoded.Messages[3].Content)
+	}
+}
+
+// TestOneofReuseBuffer tests that reusing unmarshaled structs works correctly for oneof
+func TestOneofReuseBuffer(t *testing.T) {
+	// First message with TextMessage
+	msg1 := &ChatMessage{
+		ID:      1,
+		Content: &TextMessage{Text: "First", Author: "A"},
+	}
+	data1 := msg1.MarshalProtobuf(nil)
+
+	// Unmarshal into fresh struct
+	decoded := &ChatMessage{}
+	if err := decoded.UnmarshalProtobuf(data1); err != nil {
+		t.Fatalf("failed to unmarshal first message: %v", err)
+	}
+	if _, ok := decoded.Content.(*TextMessage); !ok {
+		t.Fatalf("expected TextMessage, got %T", decoded.Content)
+	}
+
+	// Second message with ImageMessage
+	msg2 := &ChatMessage{
+		ID:      2,
+		Content: &ImageMessage{URL: "img.png", Width: 100, Height: 100},
+	}
+	data2 := msg2.MarshalProtobuf(nil)
+
+	// Reuse the same struct - should replace the content
+	if err := decoded.UnmarshalProtobuf(data2); err != nil {
+		t.Fatalf("failed to unmarshal second message: %v", err)
+	}
+	if decoded.ID != 2 {
+		t.Errorf("ID mismatch after reuse: got %d, want 2", decoded.ID)
+	}
+	img, ok := decoded.Content.(*ImageMessage)
+	if !ok {
+		t.Fatalf("expected ImageMessage after reuse, got %T", decoded.Content)
+	}
+	if img.URL != "img.png" {
+		t.Errorf("URL mismatch: got %q", img.URL)
+	}
+
+	// Third message with nil content
+	msg3 := &ChatMessage{
+		ID:      3,
+		Content: nil,
+	}
+	data3 := msg3.MarshalProtobuf(nil)
+
+	// Reuse again - should clear the content
+	if err := decoded.UnmarshalProtobuf(data3); err != nil {
+		t.Fatalf("failed to unmarshal third message: %v", err)
+	}
+	if decoded.ID != 3 {
+		t.Errorf("ID mismatch after second reuse: got %d, want 3", decoded.ID)
+	}
+	if decoded.Content != nil {
+		t.Errorf("Content should be nil after reuse, got %T", decoded.Content)
+	}
+}
+
+// TestOneofEdgeCases tests edge cases like empty strings and zero values
+func TestOneofEdgeCases(t *testing.T) {
+	tests := []struct {
+		name    string
+		msg     *ChatMessage
+		checkFn func(t *testing.T, decoded *ChatMessage)
+	}{
+		{
+			name: "TextMessage with empty strings",
+			msg: &ChatMessage{
+				ID:      0, // zero ID
+				Content: &TextMessage{Text: "", Author: ""},
+			},
+			checkFn: func(t *testing.T, decoded *ChatMessage) {
+				text, ok := decoded.Content.(*TextMessage)
+				if !ok {
+					t.Fatalf("expected TextMessage, got %T", decoded.Content)
+				}
+				if text.Text != "" || text.Author != "" {
+					t.Errorf("expected empty strings")
+				}
+			},
+		},
+		{
+			name: "ImageMessage with zero dimensions",
+			msg: &ChatMessage{
+				ID:      0,
+				Content: &ImageMessage{URL: "", Width: 0, Height: 0},
+			},
+			checkFn: func(t *testing.T, decoded *ChatMessage) {
+				img, ok := decoded.Content.(*ImageMessage)
+				if !ok {
+					t.Fatalf("expected ImageMessage, got %T", decoded.Content)
+				}
+				if img.URL != "" || img.Width != 0 || img.Height != 0 {
+					t.Errorf("expected zero values")
+				}
+			},
+		},
+		{
+			name: "VideoMessage with zero duration",
+			msg: &ChatMessage{
+				ID:      0,
+				Content: &VideoMessage{URL: "", Duration: 0},
+			},
+			checkFn: func(t *testing.T, decoded *ChatMessage) {
+				vid, ok := decoded.Content.(*VideoMessage)
+				if !ok {
+					t.Fatalf("expected VideoMessage, got %T", decoded.Content)
+				}
+				if vid.URL != "" || vid.Duration != 0 {
+					t.Errorf("expected zero values")
+				}
+			},
+		},
+		{
+			name: "Large ID value",
+			msg: &ChatMessage{
+				ID:      9223372036854775807, // max int64
+				Content: &TextMessage{Text: "test", Author: "test"},
+			},
+			checkFn: func(t *testing.T, decoded *ChatMessage) {
+				if decoded.ID != 9223372036854775807 {
+					t.Errorf("ID mismatch: got %d", decoded.ID)
+				}
+			},
+		},
+		{
+			name: "Negative ID value",
+			msg: &ChatMessage{
+				ID:      -9223372036854775808, // min int64
+				Content: &TextMessage{Text: "test", Author: "test"},
+			},
+			checkFn: func(t *testing.T, decoded *ChatMessage) {
+				if decoded.ID != -9223372036854775808 {
+					t.Errorf("ID mismatch: got %d", decoded.ID)
+				}
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			data := tc.msg.MarshalProtobuf(nil)
+			t.Logf("%s: encoded size %d bytes", tc.name, len(data))
+
+			decoded := &ChatMessage{}
+			if err := decoded.UnmarshalProtobuf(data); err != nil {
+				t.Fatalf("failed to unmarshal: %v", err)
+			}
+
+			tc.checkFn(t, decoded)
+		})
+	}
+}

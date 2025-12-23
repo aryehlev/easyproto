@@ -212,6 +212,16 @@ type FieldInfo struct {
 	MapValueIsMsg  bool   // Map value is a message type
 	MapValueIsPtr  bool   // Map value is a pointer to message
 	MapValueCustom bool   // Map value uses custom marshaler interface
+
+	// Oneof-specific fields (for interface fields with multiple concrete types)
+	IsOneof       bool           // Field is a oneof (interface with known implementations)
+	OneofVariants []OneofVariant // List of concrete types and their field numbers
+}
+
+// OneofVariant represents a concrete type that can be stored in a oneof field
+type OneofVariant struct {
+	TypeName string // The concrete type name (e.g., "TextMessage")
+	FieldNum int    // The protobuf field number for this variant
 }
 
 func parseStruct(typeName string, structType *ast.StructType) (*TypeInfo, error) {
@@ -239,25 +249,71 @@ func parseStruct(typeName string, structType *ast.StructType) (*TypeInfo, error)
 			return nil, fmt.Errorf("invalid protobuf tag format: %s", protoTag)
 		}
 
-		fieldNum, err := strconv.Atoi(strings.TrimSpace(parts[0]))
-		if err != nil {
-			return nil, fmt.Errorf("invalid field number in tag %q: must be a number", protoTag)
-		}
+		// Check for oneof tag format: `protobuf:"oneof,TypeA:1,TypeB:2"`
+		isOneof := strings.TrimSpace(parts[0]) == "oneof"
+		var oneofVariants []OneofVariant
+		var fieldNum int
+		var err error
 
-		// Validate field number range (protobuf spec: 1 to 2^29-1, with 19000-19999 reserved)
-		if fieldNum < 1 {
-			return nil, fmt.Errorf("invalid field number %d in tag %q: must be >= 1", fieldNum, protoTag)
-		}
-		if fieldNum > 536870911 { // 2^29 - 1
-			return nil, fmt.Errorf("invalid field number %d in tag %q: must be <= 536870911", fieldNum, protoTag)
-		}
-		if fieldNum >= 19000 && fieldNum <= 19999 {
-			return nil, fmt.Errorf("invalid field number %d in tag %q: range 19000-19999 is reserved", fieldNum, protoTag)
+		if isOneof {
+			// Parse oneof variants
+			if len(parts) < 2 {
+				return nil, fmt.Errorf("oneof tag requires at least one variant: %s", protoTag)
+			}
+			for _, part := range parts[1:] {
+				part = strings.TrimSpace(part)
+				colonIdx := strings.LastIndex(part, ":")
+				if colonIdx == -1 {
+					return nil, fmt.Errorf("invalid oneof variant %q in tag %q: expected Type:FieldNum format", part, protoTag)
+				}
+				variantType := strings.TrimSpace(part[:colonIdx])
+				variantFieldNum, err := strconv.Atoi(strings.TrimSpace(part[colonIdx+1:]))
+				if err != nil {
+					return nil, fmt.Errorf("invalid field number for oneof variant %q in tag %q", part, protoTag)
+				}
+				// Validate variant field number
+				if variantFieldNum < 1 || variantFieldNum > 536870911 {
+					return nil, fmt.Errorf("invalid field number %d for oneof variant %q: must be 1-536870911", variantFieldNum, variantType)
+				}
+				if variantFieldNum >= 19000 && variantFieldNum <= 19999 {
+					return nil, fmt.Errorf("invalid field number %d for oneof variant %q: range 19000-19999 is reserved", variantFieldNum, variantType)
+				}
+				// Check for duplicate field numbers in oneof
+				for _, existing := range oneofVariants {
+					if existing.FieldNum == variantFieldNum {
+						return nil, fmt.Errorf("duplicate field number %d in oneof: used by both %q and %q", variantFieldNum, existing.TypeName, variantType)
+					}
+				}
+				oneofVariants = append(oneofVariants, OneofVariant{
+					TypeName: variantType,
+					FieldNum: variantFieldNum,
+				})
+			}
+			// Use -1 as sentinel for oneof (no single field number)
+			fieldNum = -1
+		} else {
+			fieldNum, err = strconv.Atoi(strings.TrimSpace(parts[0]))
+			if err != nil {
+				return nil, fmt.Errorf("invalid field number in tag %q: must be a number", protoTag)
+			}
+
+			// Validate field number range (protobuf spec: 1 to 2^29-1, with 19000-19999 reserved)
+			if fieldNum < 1 {
+				return nil, fmt.Errorf("invalid field number %d in tag %q: must be >= 1", fieldNum, protoTag)
+			}
+			if fieldNum > 536870911 { // 2^29 - 1
+				return nil, fmt.Errorf("invalid field number %d in tag %q: must be <= 536870911", fieldNum, protoTag)
+			}
+			if fieldNum >= 19000 && fieldNum <= 19999 {
+				return nil, fmt.Errorf("invalid field number %d in tag %q: range 19000-19999 is reserved", fieldNum, protoTag)
+			}
 		}
 
 		// Proto type is optional - can be inferred from Go type
 		var protoType string
-		if len(parts) >= 2 {
+		if isOneof {
+			protoType = "oneof"
+		} else if len(parts) >= 2 {
 			protoType = strings.TrimSpace(parts[1])
 			// Validate explicit protobuf type
 			if !isValidProtoType(protoType) {
@@ -268,13 +324,13 @@ func parseStruct(typeName string, structType *ast.StructType) (*TypeInfo, error)
 			protoType = inferProtoType(field.Type)
 		}
 
-		// Reject interface types (like 'any' or custom interfaces)
-		if protoType == "interface" {
+		// Reject interface types (like 'any' or custom interfaces) - unless it's a oneof
+		if protoType == "interface" && !isOneof {
 			fieldName := ""
 			if len(field.Names) > 0 {
 				fieldName = field.Names[0].Name
 			}
-			return nil, fmt.Errorf("interface types are not supported for protobuf: field %q in type %s has type %s",
+			return nil, fmt.Errorf("interface types are not supported for protobuf (use oneof tag for polymorphism): field %q in type %s has type %s",
 				fieldName, typeName, exprToString(field.Type))
 		}
 
@@ -304,25 +360,27 @@ func parseStruct(typeName string, structType *ast.StructType) (*TypeInfo, error)
 			}
 		}
 
-		// Parse options from remaining parts (if any)
-		optionStart := 2
-		if isMap && len(parts) >= 4 {
-			optionStart = 4 // Skip map key/value types
-		}
-		if len(parts) > optionStart {
-			for _, part := range parts[optionStart:] {
-				switch strings.TrimSpace(part) {
-				case "repeated":
-					isRepeated = true
-				case "optional":
-					isOptional = true
-				case "enum":
-					isEnum = true
-				case "custom":
-					isCustom = true
-					// For maps, custom applies to the value type
-					if isMap {
-						mapValueCustom = true
+		// Parse options from remaining parts (if any) - skip for oneof (already parsed)
+		if !isOneof {
+			optionStart := 2
+			if isMap && len(parts) >= 4 {
+				optionStart = 4 // Skip map key/value types
+			}
+			if len(parts) > optionStart {
+				for _, part := range parts[optionStart:] {
+					switch strings.TrimSpace(part) {
+					case "repeated":
+						isRepeated = true
+					case "optional":
+						isOptional = true
+					case "enum":
+						isEnum = true
+					case "custom":
+						isCustom = true
+						// For maps, custom applies to the value type
+						if isMap {
+							mapValueCustom = true
+						}
 					}
 				}
 			}
@@ -344,22 +402,35 @@ func parseStruct(typeName string, structType *ast.StructType) (*TypeInfo, error)
 
 		for _, fieldName := range fieldNames {
 			// Check for duplicate field numbers
-			if existingField, ok := seenFieldNums[fieldNum]; ok {
-				return nil, fmt.Errorf("duplicate field number %d: used by both %q and %q in type %s",
-					fieldNum, existingField, fieldName, typeName)
+			if isOneof {
+				// For oneof, check all variant field numbers
+				for _, variant := range oneofVariants {
+					if existingField, ok := seenFieldNums[variant.FieldNum]; ok {
+						return nil, fmt.Errorf("duplicate field number %d: used by both %q and oneof variant %q in type %s",
+							variant.FieldNum, existingField, variant.TypeName, typeName)
+					}
+					seenFieldNums[variant.FieldNum] = fieldName + ":" + variant.TypeName
+				}
+			} else {
+				if existingField, ok := seenFieldNums[fieldNum]; ok {
+					return nil, fmt.Errorf("duplicate field number %d: used by both %q and %q in type %s",
+						fieldNum, existingField, fieldName, typeName)
+				}
+				seenFieldNums[fieldNum] = fieldName
 			}
-			seenFieldNums[fieldNum] = fieldName
 
 			fi := &FieldInfo{
-				Name:       fieldName,
-				FieldNum:   fieldNum,
-				ProtoType:  protoType,
-				IsRepeated: isRepeated,
-				IsOptional: isOptional,
-				IsMessage:  protoType == "message",
-				IsEnum:     isEnum,
-				IsMap:      isMap,
-				IsCustom:   isCustom,
+				Name:          fieldName,
+				FieldNum:      fieldNum,
+				ProtoType:     protoType,
+				IsRepeated:    isRepeated,
+				IsOptional:    isOptional,
+				IsMessage:     protoType == "message",
+				IsEnum:        isEnum,
+				IsMap:         isMap,
+				IsCustom:      isCustom,
+				IsOneof:       isOneof,
+				OneofVariants: oneofVariants,
 			}
 
 			// Analyze Go type
@@ -421,6 +492,7 @@ var validProtoTypes = map[string]bool{
 	"message":  true,
 	"enum":     true,
 	"map":      true,
+	"oneof":    true,
 }
 
 // validMapKeyTypes is the set of valid protobuf map key types
@@ -650,8 +722,12 @@ func (x *{{$info.Name}}) UnmarshalProtobuf(src []byte) (err error) {
 		}
 		switch fc.FieldNum {
 {{- range $field := $info.Fields}}
+{{- if $field.IsOneof}}
+{{unmarshalOneofCases $info $field}}
+{{- else}}
 		case {{$field.FieldNum}}:
 {{unmarshalField $info $field}}
+{{- end}}
 {{- end}}
 		}
 	}
@@ -663,13 +739,14 @@ func (x *{{$info.Name}}) UnmarshalProtobuf(src []byte) (err error) {
 
 func generateCode(buf *bytes.Buffer, pkgName string, typeNames []string, typeInfos map[string]*TypeInfo, skipHeader bool) error {
 	funcMap := template.FuncMap{
-		"appendFunc":     appendFunc,
-		"readFunc":       readFunc,
-		"unpackFunc":     unpackFunc,
-		"zeroValue":      zeroValue,
-		"marshalField":   marshalField,
-		"unmarshalField": unmarshalField,
-		"resetField":     resetField,
+		"appendFunc":          appendFunc,
+		"readFunc":            readFunc,
+		"unpackFunc":          unpackFunc,
+		"zeroValue":           zeroValue,
+		"marshalField":        marshalField,
+		"unmarshalField":      unmarshalField,
+		"unmarshalOneofCases": unmarshalOneofCases,
+		"resetField":          resetField,
 	}
 
 	tmpl, err := template.New("code").Funcs(funcMap).Parse(codeTemplate)
@@ -696,6 +773,17 @@ func generateCode(buf *bytes.Buffer, pkgName string, typeNames []string, typeInf
 func marshalField(info *TypeInfo, field *FieldInfo) string {
 	var buf strings.Builder
 	fieldAccess := "x." + field.Name
+
+	// Handle oneof fields with type switch
+	if field.IsOneof {
+		buf.WriteString(fmt.Sprintf("\tswitch v := %s.(type) {\n", fieldAccess))
+		for _, variant := range field.OneofVariants {
+			buf.WriteString(fmt.Sprintf("\tcase *%s:\n", variant.TypeName))
+			buf.WriteString(fmt.Sprintf("\t\tv.MarshalProtobufTo(mm.AppendMessage(%d))\n", variant.FieldNum))
+		}
+		buf.WriteString("\t}")
+		return buf.String()
+	}
 
 	if field.IsMap {
 		// Maps are encoded as repeated messages with key (field 1) and value (field 2)
@@ -926,9 +1014,36 @@ func unmarshalField(info *TypeInfo, field *FieldInfo) string {
 	return buf.String()
 }
 
+// unmarshalOneofCases generates unmarshal case statements for a oneof field.
+// This generates multiple case statements, one for each variant type.
+func unmarshalOneofCases(info *TypeInfo, field *FieldInfo) string {
+	var buf strings.Builder
+	fieldAccess := "x." + field.Name
+
+	for _, variant := range field.OneofVariants {
+		buf.WriteString(fmt.Sprintf("\t\tcase %d:\n", variant.FieldNum))
+		buf.WriteString("\t\t\tdata, ok := fc.MessageData()\n")
+		buf.WriteString("\t\t\tif !ok {\n")
+		buf.WriteString(fmt.Sprintf("\t\t\t\treturn fmt.Errorf(\"cannot read %s.%s (%s) data\")\n", info.Name, field.Name, variant.TypeName))
+		buf.WriteString("\t\t\t}\n")
+		buf.WriteString(fmt.Sprintf("\t\t\tv := &%s{}\n", variant.TypeName))
+		buf.WriteString("\t\t\tif err := v.UnmarshalProtobuf(data); err != nil {\n")
+		buf.WriteString(fmt.Sprintf("\t\t\t\treturn fmt.Errorf(\"cannot unmarshal %s.%s (%s): %%w\", err)\n", info.Name, field.Name, variant.TypeName))
+		buf.WriteString("\t\t\t}\n")
+		buf.WriteString(fmt.Sprintf("\t\t\t%s = v\n", fieldAccess))
+	}
+
+	return buf.String()
+}
+
 // resetField generates reset code for a single field.
 func resetField(info *TypeInfo, field *FieldInfo) string {
 	fieldAccess := "x." + field.Name
+
+	// Oneof fields are interfaces - set to nil
+	if field.IsOneof {
+		return fmt.Sprintf("\t%s = nil", fieldAccess)
+	}
 
 	if field.IsMap {
 		// Clear map by deleting all keys (preserves allocated memory)

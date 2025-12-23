@@ -360,3 +360,296 @@ func (x *all3) UnmarshalProtobuf(src []byte) (err error) {
 	}
 	return nil
 }
+
+// MarshalProtobuf marshals TextMessage into protobuf message, appends this message to dst and returns the result.
+//
+// This function doesn't allocate memory on repeated calls.
+func (x *TextMessage) MarshalProtobuf(dst []byte) []byte {
+	m := _mp.Get()
+	x.MarshalProtobufTo(m.MessageMarshaler())
+	dst = m.Marshal(dst)
+	_mp.Put(m)
+	return dst
+}
+
+// MarshalProtobufTo marshals TextMessage fields to the given MessageMarshaler.
+// Implements ProtobufMarshaler interface.
+func (x *TextMessage) MarshalProtobufTo(mm *easyproto.MessageMarshaler) {
+	mm.AppendString(1, x.Text)
+	mm.AppendString(2, x.Author)
+}
+
+// UnmarshalProtobuf unmarshals TextMessage from protobuf message at src.
+func (x *TextMessage) UnmarshalProtobuf(src []byte) (err error) {
+	// Set default values
+	x.Text = ""
+	x.Author = ""
+
+	// Parse message
+	var fc easyproto.FieldContext
+	for len(src) > 0 {
+		src, err = fc.NextField(src)
+		if err != nil {
+			return fmt.Errorf("cannot read next field in TextMessage: %w", err)
+		}
+		switch fc.FieldNum {
+		case 1:
+			v, ok := fc.String()
+			if !ok {
+				return fmt.Errorf("cannot read TextMessage.Text")
+			}
+			x.Text = v
+		case 2:
+			v, ok := fc.String()
+			if !ok {
+				return fmt.Errorf("cannot read TextMessage.Author")
+			}
+			x.Author = v
+		}
+	}
+	return nil
+}
+
+// MarshalProtobuf marshals ImageMessage into protobuf message, appends this message to dst and returns the result.
+//
+// This function doesn't allocate memory on repeated calls.
+func (x *ImageMessage) MarshalProtobuf(dst []byte) []byte {
+	m := _mp.Get()
+	x.MarshalProtobufTo(m.MessageMarshaler())
+	dst = m.Marshal(dst)
+	_mp.Put(m)
+	return dst
+}
+
+// MarshalProtobufTo marshals ImageMessage fields to the given MessageMarshaler.
+// Implements ProtobufMarshaler interface.
+func (x *ImageMessage) MarshalProtobufTo(mm *easyproto.MessageMarshaler) {
+	mm.AppendString(1, x.URL)
+	mm.AppendInt32(2, x.Width)
+	mm.AppendInt32(3, x.Height)
+}
+
+// UnmarshalProtobuf unmarshals ImageMessage from protobuf message at src.
+func (x *ImageMessage) UnmarshalProtobuf(src []byte) (err error) {
+	// Set default values
+	x.URL = ""
+	x.Width = 0
+	x.Height = 0
+
+	// Parse message
+	var fc easyproto.FieldContext
+	for len(src) > 0 {
+		src, err = fc.NextField(src)
+		if err != nil {
+			return fmt.Errorf("cannot read next field in ImageMessage: %w", err)
+		}
+		switch fc.FieldNum {
+		case 1:
+			v, ok := fc.String()
+			if !ok {
+				return fmt.Errorf("cannot read ImageMessage.URL")
+			}
+			x.URL = v
+		case 2:
+			v, ok := fc.Int32()
+			if !ok {
+				return fmt.Errorf("cannot read ImageMessage.Width")
+			}
+			x.Width = v
+		case 3:
+			v, ok := fc.Int32()
+			if !ok {
+				return fmt.Errorf("cannot read ImageMessage.Height")
+			}
+			x.Height = v
+		}
+	}
+	return nil
+}
+
+// MarshalProtobuf marshals VideoMessage into protobuf message, appends this message to dst and returns the result.
+//
+// This function doesn't allocate memory on repeated calls.
+func (x *VideoMessage) MarshalProtobuf(dst []byte) []byte {
+	m := _mp.Get()
+	x.MarshalProtobufTo(m.MessageMarshaler())
+	dst = m.Marshal(dst)
+	_mp.Put(m)
+	return dst
+}
+
+// MarshalProtobufTo marshals VideoMessage fields to the given MessageMarshaler.
+// Implements ProtobufMarshaler interface.
+func (x *VideoMessage) MarshalProtobufTo(mm *easyproto.MessageMarshaler) {
+	mm.AppendString(1, x.URL)
+	mm.AppendInt64(2, x.Duration)
+}
+
+// UnmarshalProtobuf unmarshals VideoMessage from protobuf message at src.
+func (x *VideoMessage) UnmarshalProtobuf(src []byte) (err error) {
+	// Set default values
+	x.URL = ""
+	x.Duration = 0
+
+	// Parse message
+	var fc easyproto.FieldContext
+	for len(src) > 0 {
+		src, err = fc.NextField(src)
+		if err != nil {
+			return fmt.Errorf("cannot read next field in VideoMessage: %w", err)
+		}
+		switch fc.FieldNum {
+		case 1:
+			v, ok := fc.String()
+			if !ok {
+				return fmt.Errorf("cannot read VideoMessage.URL")
+			}
+			x.URL = v
+		case 2:
+			v, ok := fc.Int64()
+			if !ok {
+				return fmt.Errorf("cannot read VideoMessage.Duration")
+			}
+			x.Duration = v
+		}
+	}
+	return nil
+}
+
+// MarshalProtobuf marshals ChatMessage into protobuf message, appends this message to dst and returns the result.
+//
+// This function doesn't allocate memory on repeated calls.
+func (x *ChatMessage) MarshalProtobuf(dst []byte) []byte {
+	m := _mp.Get()
+	x.MarshalProtobufTo(m.MessageMarshaler())
+	dst = m.Marshal(dst)
+	_mp.Put(m)
+	return dst
+}
+
+// MarshalProtobufTo marshals ChatMessage fields to the given MessageMarshaler.
+// Implements ProtobufMarshaler interface.
+func (x *ChatMessage) MarshalProtobufTo(mm *easyproto.MessageMarshaler) {
+	switch v := x.Content.(type) {
+	case *TextMessage:
+		v.MarshalProtobufTo(mm.AppendMessage(2))
+	case *ImageMessage:
+		v.MarshalProtobufTo(mm.AppendMessage(3))
+	case *VideoMessage:
+		v.MarshalProtobufTo(mm.AppendMessage(4))
+	}
+	mm.AppendInt64(1, x.ID)
+}
+
+// UnmarshalProtobuf unmarshals ChatMessage from protobuf message at src.
+func (x *ChatMessage) UnmarshalProtobuf(src []byte) (err error) {
+	// Set default values
+	x.Content = nil
+	x.ID = 0
+
+	// Parse message
+	var fc easyproto.FieldContext
+	for len(src) > 0 {
+		src, err = fc.NextField(src)
+		if err != nil {
+			return fmt.Errorf("cannot read next field in ChatMessage: %w", err)
+		}
+		switch fc.FieldNum {
+		case 2:
+			data, ok := fc.MessageData()
+			if !ok {
+				return fmt.Errorf("cannot read ChatMessage.Content (TextMessage) data")
+			}
+			v := &TextMessage{}
+			if err := v.UnmarshalProtobuf(data); err != nil {
+				return fmt.Errorf("cannot unmarshal ChatMessage.Content (TextMessage): %w", err)
+			}
+			x.Content = v
+		case 3:
+			data, ok := fc.MessageData()
+			if !ok {
+				return fmt.Errorf("cannot read ChatMessage.Content (ImageMessage) data")
+			}
+			v := &ImageMessage{}
+			if err := v.UnmarshalProtobuf(data); err != nil {
+				return fmt.Errorf("cannot unmarshal ChatMessage.Content (ImageMessage): %w", err)
+			}
+			x.Content = v
+		case 4:
+			data, ok := fc.MessageData()
+			if !ok {
+				return fmt.Errorf("cannot read ChatMessage.Content (VideoMessage) data")
+			}
+			v := &VideoMessage{}
+			if err := v.UnmarshalProtobuf(data); err != nil {
+				return fmt.Errorf("cannot unmarshal ChatMessage.Content (VideoMessage): %w", err)
+			}
+			x.Content = v
+
+		case 1:
+			v, ok := fc.Int64()
+			if !ok {
+				return fmt.Errorf("cannot read ChatMessage.ID")
+			}
+			x.ID = v
+		}
+	}
+	return nil
+}
+
+// MarshalProtobuf marshals ChatHistory into protobuf message, appends this message to dst and returns the result.
+//
+// This function doesn't allocate memory on repeated calls.
+func (x *ChatHistory) MarshalProtobuf(dst []byte) []byte {
+	m := _mp.Get()
+	x.MarshalProtobufTo(m.MessageMarshaler())
+	dst = m.Marshal(dst)
+	_mp.Put(m)
+	return dst
+}
+
+// MarshalProtobufTo marshals ChatHistory fields to the given MessageMarshaler.
+// Implements ProtobufMarshaler interface.
+func (x *ChatHistory) MarshalProtobufTo(mm *easyproto.MessageMarshaler) {
+	mm.AppendString(1, x.Title)
+	for _, item := range x.Messages {
+		if item != nil {
+			item.MarshalProtobufTo(mm.AppendMessage(2))
+		}
+	}
+}
+
+// UnmarshalProtobuf unmarshals ChatHistory from protobuf message at src.
+func (x *ChatHistory) UnmarshalProtobuf(src []byte) (err error) {
+	// Set default values
+	x.Title = ""
+	x.Messages = x.Messages[:0]
+
+	// Parse message
+	var fc easyproto.FieldContext
+	for len(src) > 0 {
+		src, err = fc.NextField(src)
+		if err != nil {
+			return fmt.Errorf("cannot read next field in ChatHistory: %w", err)
+		}
+		switch fc.FieldNum {
+		case 1:
+			v, ok := fc.String()
+			if !ok {
+				return fmt.Errorf("cannot read ChatHistory.Title")
+			}
+			x.Title = v
+		case 2:
+			data, ok := fc.MessageData()
+			if !ok {
+				return fmt.Errorf("cannot read ChatHistory.Messages data")
+			}
+			item := &ChatMessage{}
+			if err := item.UnmarshalProtobuf(data); err != nil {
+				return fmt.Errorf("cannot unmarshal ChatHistory.Messages: %w", err)
+			}
+			x.Messages = append(x.Messages, item)
+		}
+	}
+	return nil
+}
