@@ -98,30 +98,40 @@ func main() {
 		dir = flag.Args()[0]
 	}
 
-	// Parse the package
-	fset := token.NewFileSet()
-	pkgs, err := parser.ParseDir(fset, dir, nil, parser.ParseComments)
+	// Parse .go files in directory
+	entries, err := os.ReadDir(dir)
 	if err != nil {
-		log.Fatalf("failed to parse directory %s: %v", dir, err)
+		log.Fatalf("failed to read directory %s: %v", dir, err)
 	}
 
-	var pkg *ast.Package
+	fset := token.NewFileSet()
+	var files []*ast.File
 	var pkgName string
-	for name, p := range pkgs {
-		if strings.HasSuffix(name, "_test") {
+
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") || strings.HasSuffix(entry.Name(), "_test.go") {
 			continue
 		}
-		pkg = p
-		pkgName = name
-		break
+		filePath := filepath.Join(dir, entry.Name())
+		file, err := parser.ParseFile(fset, filePath, nil, parser.ParseComments)
+		if err != nil {
+			log.Fatalf("failed to parse file %s: %v", filePath, err)
+		}
+		if pkgName == "" {
+			pkgName = file.Name.Name
+		} else if file.Name.Name != pkgName {
+			continue // skip files from different packages
+		}
+		files = append(files, file)
 	}
-	if pkg == nil {
-		log.Fatal("no non-test package found")
+
+	if len(files) == 0 {
+		log.Fatal("no Go files found")
 	}
 
 	// Find the requested types
 	typeInfos := make(map[string]*TypeInfo)
-	for _, file := range pkg.Files {
+	for _, file := range files {
 		for _, decl := range file.Decls {
 			genDecl, ok := decl.(*ast.GenDecl)
 			if !ok || genDecl.Tok != token.TYPE {
