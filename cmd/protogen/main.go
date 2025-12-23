@@ -256,6 +256,15 @@ func parseStruct(typeName string, structType *ast.StructType) (*TypeInfo, error)
 		var err error
 
 		if isOneof {
+			// Validate that the field type is valid for oneof (must be interface-like, not primitive/slice/map)
+			if err := validateOneofFieldType(field.Type, protoTag); err != nil {
+				fieldName := ""
+				if len(field.Names) > 0 {
+					fieldName = field.Names[0].Name
+				}
+				return nil, fmt.Errorf("invalid oneof field %q in type %s: %w", fieldName, typeName, err)
+			}
+
 			// Parse oneof variants
 			if len(parts) < 2 {
 				return nil, fmt.Errorf("oneof tag requires at least one variant: %s", protoTag)
@@ -516,6 +525,48 @@ func isValidProtoType(protoType string) bool {
 // isValidMapKeyType checks if a protobuf type is valid as a map key
 func isValidMapKeyType(protoType string) bool {
 	return validMapKeyTypes[protoType]
+}
+
+// validateOneofFieldType checks if a field type is valid for oneof usage.
+// Oneof fields must be interface types (named or inline), not primitives, slices, or maps.
+func validateOneofFieldType(expr ast.Expr, tag string) error {
+	switch t := expr.(type) {
+	case *ast.Ident:
+		// Check for primitive types that can't be oneof
+		switch t.Name {
+		case "string", "bool", "byte", "rune",
+			"int", "int8", "int16", "int32", "int64",
+			"uint", "uint8", "uint16", "uint32", "uint64",
+			"float32", "float64", "complex64", "complex128",
+			"uintptr":
+			return fmt.Errorf("oneof tag cannot be used on primitive type %q", t.Name)
+		case "any":
+			// 'any' is valid for oneof
+			return nil
+		default:
+			// Named type (could be interface or struct) - we allow it
+			// At runtime, if it's not an interface, the type switch will fail
+			return nil
+		}
+	case *ast.InterfaceType:
+		// Inline interface{} or interface{...} - valid for oneof
+		return nil
+	case *ast.ArrayType:
+		return fmt.Errorf("oneof tag cannot be used on slice/array type %s", exprToString(expr))
+	case *ast.MapType:
+		return fmt.Errorf("oneof tag cannot be used on map type %s", exprToString(expr))
+	case *ast.StarExpr:
+		return fmt.Errorf("oneof tag cannot be used on pointer type %s (the variants are stored as pointers)", exprToString(expr))
+	case *ast.ChanType:
+		return fmt.Errorf("oneof tag cannot be used on channel type %s", exprToString(expr))
+	case *ast.FuncType:
+		return fmt.Errorf("oneof tag cannot be used on function type")
+	case *ast.SelectorExpr:
+		// Qualified type like pkg.Type - could be interface, allow it
+		return nil
+	default:
+		return fmt.Errorf("oneof tag cannot be used on type %s", exprToString(expr))
+	}
 }
 
 // getTypeName extracts the type name from an AST expression (for embedded fields)
