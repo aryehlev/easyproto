@@ -1,7 +1,7 @@
 // Package example demonstrates protogen usage with comprehensive edge cases.
 package example
 
-//go:generate go run ../cmd/protogen -type=Timeseries,Sample,AllTypes,OptionalFields,NestedMessage,WithPointers,WithEnums,RepeatedScalars,WithMaps,InferredTypes,BigStruct,SmallStruct
+//go:generate go run ../cmd/protogen -type=Timeseries,Sample,AllTypes,OptionalFields,NestedMessage,WithPointers,WithEnums,RepeatedScalars,RepeatedStringsBytes,WithMaps,InferredTypes,BigStruct,SmallStruct
 
 // Status is an enum type for demonstration.
 type Status int32
@@ -143,6 +143,13 @@ type RepeatedScalars struct {
 	Fixed64s  []uint64  `protobuf:"11,fixed64"`
 	Sfixed32s []int32   `protobuf:"12,sfixed32"`
 	Sfixed64s []int64   `protobuf:"13,sfixed64"`
+}
+
+// RepeatedStringsBytes demonstrates repeated string and bytes fields.
+// These are length-delimited types that cannot be packed.
+type RepeatedStringsBytes struct {
+	Strings []string `protobuf:"1,string"`
+	Blobs   [][]byte `protobuf:"2,bytes"`
 }
 
 // WithMaps demonstrates map field handling.

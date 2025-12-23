@@ -177,6 +177,11 @@ func marshalField(info *TypeInfo, field *FieldInfo) string {
 		} else {
 			buf.WriteString(fmt.Sprintf("\tmm.AppendInt32(%d, int32(%s))", field.FieldNum, fieldAccess))
 		}
+	} else if field.IsRepeated && (field.ProtoType == "string" || field.ProtoType == "bytes") {
+		// Repeated strings and bytes are length-delimited, not packed - need per-element loop
+		buf.WriteString(fmt.Sprintf("\tfor _, v := range %s {\n", fieldAccess))
+		buf.WriteString(fmt.Sprintf("\t\tmm.%s(%d, v)\n", appendFunc(field.ProtoType, false), field.FieldNum))
+		buf.WriteString("\t}")
 	} else if field.IsPointer && !field.IsRepeated {
 		buf.WriteString(fmt.Sprintf("\tif %s != nil {\n", fieldAccess))
 		buf.WriteString(fmt.Sprintf("\t\tmm.%s(%d, *%s)\n", appendFunc(field.ProtoType, false), field.FieldNum, fieldAccess))
@@ -301,6 +306,13 @@ func unmarshalField(info *TypeInfo, field *FieldInfo) string {
 		buf.WriteString(fmt.Sprintf("\t\t\t\treturn fmt.Errorf(\"cannot read %s.%s\")\n", info.Name, field.Name))
 		buf.WriteString("\t\t\t}\n")
 		buf.WriteString(fmt.Sprintf("\t\t\t%s = &v", fieldAccess))
+	} else if field.IsRepeated && (field.ProtoType == "string" || field.ProtoType == "bytes") {
+		// Repeated strings and bytes are length-delimited, not packed - append each element
+		buf.WriteString(fmt.Sprintf("\t\t\tv, ok := fc.%s()\n", readFunc(field.ProtoType)))
+		buf.WriteString("\t\t\tif !ok {\n")
+		buf.WriteString(fmt.Sprintf("\t\t\t\treturn fmt.Errorf(\"cannot read %s.%s\")\n", info.Name, field.Name))
+		buf.WriteString("\t\t\t}\n")
+		buf.WriteString(fmt.Sprintf("\t\t\t%s = append(%s, v)", fieldAccess, fieldAccess))
 	} else if field.IsRepeated {
 		buf.WriteString("\t\t\tvar ok bool\n")
 		buf.WriteString(fmt.Sprintf("\t\t\t%s, ok = fc.%s(%s)\n", fieldAccess, unpackFunc(field.ProtoType), fieldAccess))

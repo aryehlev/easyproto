@@ -244,6 +244,39 @@ func TestRepeatedScalars_Empty(t *testing.T) {
 	}
 }
 
+func TestRepeatedStringsBytes_RoundTrip(t *testing.T) {
+	rsb := &RepeatedStringsBytes{
+		Strings: []string{"hello", "world", "foo", "bar"},
+		Blobs:   [][]byte{{0x01, 0x02}, {0x03, 0x04, 0x05}, {0xDE, 0xAD, 0xBE, 0xEF}},
+	}
+
+	data := rsb.MarshalProtobuf(nil)
+
+	var rsb2 RepeatedStringsBytes
+	if err := rsb2.UnmarshalProtobuf(data); err != nil {
+		t.Fatalf("UnmarshalProtobuf failed: %v", err)
+	}
+
+	if !reflect.DeepEqual(rsb, &rsb2) {
+		t.Errorf("round-trip mismatch:\ngot:  %+v\nwant: %+v", rsb2, *rsb)
+	}
+}
+
+func TestRepeatedStringsBytes_Empty(t *testing.T) {
+	rsb := &RepeatedStringsBytes{}
+
+	data := rsb.MarshalProtobuf(nil)
+
+	var rsb2 RepeatedStringsBytes
+	if err := rsb2.UnmarshalProtobuf(data); err != nil {
+		t.Fatalf("UnmarshalProtobuf failed: %v", err)
+	}
+
+	if rsb2.Strings != nil || rsb2.Blobs != nil {
+		t.Errorf("expected nil slices for empty message")
+	}
+}
+
 func TestWithMaps_RoundTrip(t *testing.T) {
 	wm := &WithMaps{
 		StringToInt: map[string]int32{

@@ -45,7 +45,7 @@ func (x *Timeseries) MarshalProtobufTo(mm *easyproto.MessageMarshaler) {
 // UnmarshalProtobuf unmarshals Timeseries from protobuf message at src.
 func (x *Timeseries) UnmarshalProtobuf(src []byte) (err error) {
 	// Set default values
-	x.Name = ""
+	x.Name = *new(string)
 	x.Samples = x.Samples[:0]
 
 	// Parse message
@@ -98,8 +98,8 @@ func (x *Sample) MarshalProtobufTo(mm *easyproto.MessageMarshaler) {
 // UnmarshalProtobuf unmarshals Sample from protobuf message at src.
 func (x *Sample) UnmarshalProtobuf(src []byte) (err error) {
 	// Set default values
-	x.Value = 0
-	x.Timestamp = 0
+	x.Value = *new(float64)
+	x.Timestamp = *new(int64)
 
 	// Parse message
 	var fc easyproto.FieldContext
@@ -160,21 +160,21 @@ func (x *AllTypes) MarshalProtobufTo(mm *easyproto.MessageMarshaler) {
 // UnmarshalProtobuf unmarshals AllTypes from protobuf message at src.
 func (x *AllTypes) UnmarshalProtobuf(src []byte) (err error) {
 	// Set default values
-	x.StrField = ""
-	x.BytesField = nil
-	x.Int32Field = 0
-	x.Int64Field = 0
-	x.Uint32Field = 0
-	x.Uint64Field = 0
-	x.Sint32Field = 0
-	x.Sint64Field = 0
-	x.BoolField = false
-	x.DoubleField = 0
-	x.FloatField = 0
-	x.Fixed32Field = 0
-	x.Fixed64Field = 0
-	x.Sfixed32Field = 0
-	x.Sfixed64Field = 0
+	x.StrField = *new(string)
+	x.BytesField = *new([]byte)
+	x.Int32Field = *new(int32)
+	x.Int64Field = *new(int64)
+	x.Uint32Field = *new(uint32)
+	x.Uint64Field = *new(uint64)
+	x.Sint32Field = *new(int32)
+	x.Sint64Field = *new(int64)
+	x.BoolField = *new(bool)
+	x.DoubleField = *new(float64)
+	x.FloatField = *new(float32)
+	x.Fixed32Field = *new(uint32)
+	x.Fixed64Field = *new(uint64)
+	x.Sfixed32Field = *new(int32)
+	x.Sfixed64Field = *new(int64)
 
 	// Parse message
 	var fc easyproto.FieldContext
@@ -379,8 +379,8 @@ func (x *NestedMessage) MarshalProtobufTo(mm *easyproto.MessageMarshaler) {
 // UnmarshalProtobuf unmarshals NestedMessage from protobuf message at src.
 func (x *NestedMessage) UnmarshalProtobuf(src []byte) (err error) {
 	// Set default values
-	x.ID = 0
-	x.Outer = Sample{}
+	x.ID = *new(int64)
+	x.Outer = *new(Sample)
 	x.Optional = nil
 	x.Items = x.Items[:0]
 
@@ -457,7 +457,7 @@ func (x *WithPointers) MarshalProtobufTo(mm *easyproto.MessageMarshaler) {
 // UnmarshalProtobuf unmarshals WithPointers from protobuf message at src.
 func (x *WithPointers) UnmarshalProtobuf(src []byte) (err error) {
 	// Set default values
-	x.ID = 0
+	x.ID = *new(int64)
 	x.Samples = x.Samples[:0]
 
 	// Parse message
@@ -516,7 +516,7 @@ func (x *WithEnums) MarshalProtobufTo(mm *easyproto.MessageMarshaler) {
 // UnmarshalProtobuf unmarshals WithEnums from protobuf message at src.
 func (x *WithEnums) UnmarshalProtobuf(src []byte) (err error) {
 	// Set default values
-	x.ID = 0
+	x.ID = *new(int64)
 	x.Status = 0
 	x.OptStatus = nil
 	x.Statuses = x.Statuses[:0]
@@ -691,6 +691,59 @@ func (x *RepeatedScalars) UnmarshalProtobuf(src []byte) (err error) {
 			if !ok {
 				return fmt.Errorf("cannot read RepeatedScalars.Sfixed64s")
 			}
+		}
+	}
+	return nil
+}
+
+// MarshalProtobuf marshals RepeatedStringsBytes into protobuf message, appends this message to dst and returns the result.
+//
+// This function doesn't allocate memory on repeated calls.
+func (x *RepeatedStringsBytes) MarshalProtobuf(dst []byte) []byte {
+	m := _mp.Get()
+	x.MarshalProtobufTo(m.MessageMarshaler())
+	dst = m.Marshal(dst)
+	_mp.Put(m)
+	return dst
+}
+
+// MarshalProtobufTo marshals RepeatedStringsBytes fields to the given MessageMarshaler.
+// Implements ProtobufMarshaler interface.
+func (x *RepeatedStringsBytes) MarshalProtobufTo(mm *easyproto.MessageMarshaler) {
+	for _, v := range x.Strings {
+		mm.AppendString(1, v)
+	}
+	for _, v := range x.Blobs {
+		mm.AppendBytes(2, v)
+	}
+}
+
+// UnmarshalProtobuf unmarshals RepeatedStringsBytes from protobuf message at src.
+func (x *RepeatedStringsBytes) UnmarshalProtobuf(src []byte) (err error) {
+	// Set default values
+	x.Strings = x.Strings[:0]
+	x.Blobs = x.Blobs[:0]
+
+	// Parse message
+	var fc easyproto.FieldContext
+	for len(src) > 0 {
+		src, err = fc.NextField(src)
+		if err != nil {
+			return fmt.Errorf("cannot read next field in RepeatedStringsBytes: %w", err)
+		}
+		switch fc.FieldNum {
+		case 1:
+			v, ok := fc.String()
+			if !ok {
+				return fmt.Errorf("cannot read RepeatedStringsBytes.Strings")
+			}
+			x.Strings = append(x.Strings, v)
+		case 2:
+			v, ok := fc.Bytes()
+			if !ok {
+				return fmt.Errorf("cannot read RepeatedStringsBytes.Blobs")
+			}
+			x.Blobs = append(x.Blobs, v)
 		}
 	}
 	return nil
@@ -894,15 +947,15 @@ func (x *InferredTypes) MarshalProtobufTo(mm *easyproto.MessageMarshaler) {
 // UnmarshalProtobuf unmarshals InferredTypes from protobuf message at src.
 func (x *InferredTypes) UnmarshalProtobuf(src []byte) (err error) {
 	// Set default values
-	x.Name = ""
-	x.Age = 0
-	x.Score = 0
-	x.IsActive = false
-	x.Data = nil
-	x.BigNum = 0
-	x.SmallNum = 0
-	x.Unsigned = 0
-	x.BigUnsign = 0
+	x.Name = *new(string)
+	x.Age = *new(int32)
+	x.Score = *new(float64)
+	x.IsActive = *new(bool)
+	x.Data = *new([]byte)
+	x.BigNum = *new(int64)
+	x.SmallNum = *new(float32)
+	x.Unsigned = *new(uint32)
+	x.BigUnsign = *new(uint64)
 	x.Inner = nil
 	x.Items = x.Items[:0]
 	for k := range x.Lookup {
@@ -1063,14 +1116,14 @@ func (x *BigStruct) MarshalProtobufTo(mm *easyproto.MessageMarshaler) {
 // UnmarshalProtobuf unmarshals BigStruct from protobuf message at src.
 func (x *BigStruct) UnmarshalProtobuf(src []byte) (err error) {
 	// Set default values
-	x.Field1 = ""
-	x.Field2 = 0
-	x.Field3 = 0
-	x.Field4 = false
-	x.Field5 = 0
-	x.Series = Timeseries{}
-	x.Field51 = ""
-	x.Field52 = 0
+	x.Field1 = *new(string)
+	x.Field2 = *new(int32)
+	x.Field3 = *new(int64)
+	x.Field4 = *new(bool)
+	x.Field5 = *new(float64)
+	x.Series = *new(Timeseries)
+	x.Field51 = *new(string)
+	x.Field52 = *new(int32)
 
 	// Parse message
 	var fc easyproto.FieldContext
@@ -1156,8 +1209,8 @@ func (x *SmallStruct) MarshalProtobufTo(mm *easyproto.MessageMarshaler) {
 // UnmarshalProtobuf unmarshals SmallStruct from protobuf message at src.
 func (x *SmallStruct) UnmarshalProtobuf(src []byte) (err error) {
 	// Set default values
-	x.Name = ""
-	x.Series = Timeseries{}
+	x.Name = *new(string)
+	x.Series = *new(Timeseries)
 
 	// Parse message
 	var fc easyproto.FieldContext
