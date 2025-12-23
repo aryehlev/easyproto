@@ -146,33 +146,40 @@ func unpackFunc(protoType string) string {
 	}
 }
 
-// zeroValue returns the zero value for a Go type.
+// primitiveZeroValues maps Go primitive types to their zero value literals.
+var primitiveZeroValues = map[string]string{
+	"string":  `""`,
+	"bool":    "false",
+	"int":     "0",
+	"int8":    "0",
+	"int16":   "0",
+	"int32":   "0",
+	"int64":   "0",
+	"uint":    "0",
+	"uint8":   "0",
+	"uint16":  "0",
+	"uint32":  "0",
+	"uint64":  "0",
+	"float32": "0",
+	"float64": "0",
+	"[]byte":  "nil",
+}
+
+// zeroValue returns the zero value literal for a Go type.
 func zeroValue(goType string) string {
-	switch goType {
-	case "string":
-		return `""`
-	case "bool":
-		return "false"
-	case "int", "int8", "int16", "int32", "int64":
-		return "0"
-	case "uint", "uint8", "uint16", "uint32", "uint64":
-		return "0"
-	case "float32", "float64":
-		return "0"
-	case "[]byte":
-		return "nil"
-	default:
-		if strings.HasPrefix(goType, "*") {
-			return "nil"
-		}
-		if strings.HasPrefix(goType, "[]") {
-			return "nil"
-		}
-		if strings.HasPrefix(goType, "map[") {
-			return "nil"
-		}
-		// Use *new(T) which works for any type: structs, type aliases, etc.
-		// This correctly handles cases like `type MyInt int` where `MyInt{}` would be invalid.
-		return fmt.Sprintf("*new(%s)", goType)
+	// Primitive types have known zero values
+	if v, ok := primitiveZeroValues[goType]; ok {
+		return v
 	}
+
+	// Pointers, slices, and maps have nil as zero value
+	if strings.HasPrefix(goType, "*") ||
+		strings.HasPrefix(goType, "[]") ||
+		strings.HasPrefix(goType, "map[") {
+		return "nil"
+	}
+
+	// Custom types (structs, type aliases, etc.): use *new(T) which works for any type.
+	// This correctly handles cases like `type MyInt int` where `MyInt{}` would be invalid.
+	return fmt.Sprintf("*new(%s)", goType)
 }
