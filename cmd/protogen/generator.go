@@ -111,269 +111,257 @@ func generateCode(buf *bytes.Buffer, pkgName string, typeNames []string, typeInf
 	return tmpl.Execute(buf, data)
 }
 
+// Template helper functions
+var helperFuncs = template.FuncMap{
+	"appendFunc":        appendFunc,
+	"readFunc":          readFunc,
+	"unpackFunc":        unpackFunc,
+	"isLengthDelimited": func(t string) bool { return t == "string" || t == "bytes" },
+	"trimPrefix":        strings.TrimPrefix,
+}
+
+func execTemplate(name, tmplStr string, data any) string {
+	tmpl := template.Must(template.New(name).Funcs(helperFuncs).Parse(tmplStr))
+	var buf strings.Builder
+	if err := tmpl.Execute(&buf, data); err != nil {
+		panic(fmt.Sprintf("template %s failed: %v", name, err))
+	}
+	return buf.String()
+}
+
 // marshalField generates marshal code for a single field.
 func marshalField(info *TypeInfo, field *FieldInfo) string {
-	var buf strings.Builder
-	fieldAccess := "x." + field.Name
-
-	// Handle oneof fields with type switch
-	if field.IsOneof {
-		buf.WriteString(fmt.Sprintf("\tswitch v := %s.(type) {\n", fieldAccess))
-		for _, variant := range field.OneofVariants {
-			buf.WriteString(fmt.Sprintf("\tcase *%s:\n", variant.TypeName))
-			buf.WriteString(fmt.Sprintf("\t\tv.MarshalProtobufTo(mm.AppendMessage(%d))\n", variant.FieldNum))
-		}
-		buf.WriteString("\t}")
-		return buf.String()
+	const tmpl = `{{$fa := printf "x.%s" .Field.Name}}
+{{- if .Field.IsOneof}}
+	switch v := {{$fa}}.(type) {
+{{- range $variant := .Field.OneofVariants}}
+	case *{{$variant.TypeName}}:
+		v.MarshalProtobufTo(mm.AppendMessage({{$variant.FieldNum}}))
+{{- end}}
 	}
-
-	if field.IsMap {
-		buf.WriteString(fmt.Sprintf("\tfor k, v := range %s {\n", fieldAccess))
-		buf.WriteString(fmt.Sprintf("\t\tmm2 := mm.AppendMessage(%d)\n", field.FieldNum))
-		buf.WriteString(fmt.Sprintf("\t\tmm2.%s(1, k)\n", appendFunc(field.MapKeyProto, false)))
-
-		if field.MapValueIsMsg {
-			if field.MapValueIsPtr {
-				buf.WriteString("\t\tif v != nil {\n")
-				buf.WriteString("\t\t\tv.MarshalProtobufTo(mm2.AppendMessage(2))\n")
-				buf.WriteString("\t\t}\n")
-			} else {
-				buf.WriteString("\t\tv.MarshalProtobufTo(mm2.AppendMessage(2))\n")
-			}
-		} else {
-			buf.WriteString(fmt.Sprintf("\t\tmm2.%s(2, v)\n", appendFunc(field.MapValueProto, false)))
+{{- else if .Field.IsMap}}
+	for k, v := range {{$fa}} {
+		mm2 := mm.AppendMessage({{.Field.FieldNum}})
+		mm2.{{appendFunc .Field.MapKeyProto false}}(1, k)
+{{- if .Field.MapValueIsMsg}}
+{{- if .Field.MapValueIsPtr}}
+		if v != nil {
+			v.MarshalProtobufTo(mm2.AppendMessage(2))
 		}
-		buf.WriteString("\t}")
-		return buf.String()
+{{- else}}
+		v.MarshalProtobufTo(mm2.AppendMessage(2))
+{{- end}}
+{{- else}}
+		mm2.{{appendFunc .Field.MapValueProto false}}(2, v)
+{{- end}}
 	}
-
-	if field.IsMessage {
-		if field.IsPointer && !field.IsRepeated {
-			buf.WriteString(fmt.Sprintf("\tif %s != nil {\n", fieldAccess))
-			buf.WriteString(fmt.Sprintf("\t\t%s.MarshalProtobufTo(mm.AppendMessage(%d))\n", fieldAccess, field.FieldNum))
-			buf.WriteString("\t}")
-		} else if field.IsRepeated && field.IsSliceOfPtr {
-			buf.WriteString(fmt.Sprintf("\tfor _, item := range %s {\n", fieldAccess))
-			buf.WriteString("\t\tif item != nil {\n")
-			buf.WriteString(fmt.Sprintf("\t\t\titem.MarshalProtobufTo(mm.AppendMessage(%d))\n", field.FieldNum))
-			buf.WriteString("\t\t}\n")
-			buf.WriteString("\t}")
-		} else if field.IsRepeated {
-			buf.WriteString(fmt.Sprintf("\tfor i := range %s {\n", fieldAccess))
-			buf.WriteString(fmt.Sprintf("\t\t%s[i].MarshalProtobufTo(mm.AppendMessage(%d))\n", fieldAccess, field.FieldNum))
-			buf.WriteString("\t}")
-		} else {
-			buf.WriteString(fmt.Sprintf("\t%s.MarshalProtobufTo(mm.AppendMessage(%d))", fieldAccess, field.FieldNum))
-		}
-	} else if field.IsEnum {
-		if field.IsPointer && !field.IsRepeated {
-			buf.WriteString(fmt.Sprintf("\tif %s != nil {\n", fieldAccess))
-			buf.WriteString(fmt.Sprintf("\t\tmm.AppendInt32(%d, int32(*%s))\n", field.FieldNum, fieldAccess))
-			buf.WriteString("\t}")
-		} else if field.IsRepeated {
-			buf.WriteString(fmt.Sprintf("\tfor _, v := range %s {\n", fieldAccess))
-			buf.WriteString(fmt.Sprintf("\t\tmm.AppendInt32(%d, int32(v))\n", field.FieldNum))
-			buf.WriteString("\t}")
-		} else {
-			buf.WriteString(fmt.Sprintf("\tmm.AppendInt32(%d, int32(%s))", field.FieldNum, fieldAccess))
-		}
-	} else if field.IsRepeated && (field.ProtoType == "string" || field.ProtoType == "bytes") {
-		// Repeated strings and bytes are length-delimited, not packed - need per-element loop
-		buf.WriteString(fmt.Sprintf("\tfor _, v := range %s {\n", fieldAccess))
-		buf.WriteString(fmt.Sprintf("\t\tmm.%s(%d, v)\n", appendFunc(field.ProtoType, false), field.FieldNum))
-		buf.WriteString("\t}")
-	} else if field.IsPointer && !field.IsRepeated {
-		buf.WriteString(fmt.Sprintf("\tif %s != nil {\n", fieldAccess))
-		buf.WriteString(fmt.Sprintf("\t\tmm.%s(%d, *%s)\n", appendFunc(field.ProtoType, false), field.FieldNum, fieldAccess))
-		buf.WriteString("\t}")
-	} else if field.IsRepeated {
-		buf.WriteString(fmt.Sprintf("\tmm.%s(%d, %s)", appendFunc(field.ProtoType, true), field.FieldNum, fieldAccess))
-	} else {
-		buf.WriteString(fmt.Sprintf("\tmm.%s(%d, %s)", appendFunc(field.ProtoType, false), field.FieldNum, fieldAccess))
+{{- else if .Field.IsMessage}}
+{{- if and .Field.IsPointer (not .Field.IsRepeated)}}
+	if {{$fa}} != nil {
+		{{$fa}}.MarshalProtobufTo(mm.AppendMessage({{.Field.FieldNum}}))
 	}
-
-	return buf.String()
+{{- else if and .Field.IsRepeated .Field.IsSliceOfPtr}}
+	for _, item := range {{$fa}} {
+		if item != nil {
+			item.MarshalProtobufTo(mm.AppendMessage({{.Field.FieldNum}}))
+		}
+	}
+{{- else if .Field.IsRepeated}}
+	for i := range {{$fa}} {
+		{{$fa}}[i].MarshalProtobufTo(mm.AppendMessage({{.Field.FieldNum}}))
+	}
+{{- else}}
+	{{$fa}}.MarshalProtobufTo(mm.AppendMessage({{.Field.FieldNum}}))
+{{- end}}
+{{- else if .Field.IsEnum}}
+{{- if and .Field.IsPointer (not .Field.IsRepeated)}}
+	if {{$fa}} != nil {
+		mm.AppendInt32({{.Field.FieldNum}}, int32(*{{$fa}}))
+	}
+{{- else if .Field.IsRepeated}}
+	for _, v := range {{$fa}} {
+		mm.AppendInt32({{.Field.FieldNum}}, int32(v))
+	}
+{{- else}}
+	mm.AppendInt32({{.Field.FieldNum}}, int32({{$fa}}))
+{{- end}}
+{{- else if and .Field.IsRepeated (isLengthDelimited .Field.ProtoType)}}
+	for _, v := range {{$fa}} {
+		mm.{{appendFunc .Field.ProtoType false}}({{.Field.FieldNum}}, v)
+	}
+{{- else if and .Field.IsPointer (not .Field.IsRepeated)}}
+	if {{$fa}} != nil {
+		mm.{{appendFunc .Field.ProtoType false}}({{.Field.FieldNum}}, *{{$fa}})
+	}
+{{- else if .Field.IsRepeated}}
+	mm.{{appendFunc .Field.ProtoType true}}({{.Field.FieldNum}}, {{$fa}})
+{{- else}}
+	mm.{{appendFunc .Field.ProtoType false}}({{.Field.FieldNum}}, {{$fa}})
+{{- end}}`
+	return execTemplate("marshal", tmpl, map[string]any{"Info": info, "Field": field})
 }
 
 // unmarshalField generates unmarshal code for a single field.
 func unmarshalField(info *TypeInfo, field *FieldInfo) string {
-	var buf strings.Builder
-	fieldAccess := "x." + field.Name
-
-	if field.IsMap {
-		buf.WriteString("\t\t\tdata, ok := fc.MessageData()\n")
-		buf.WriteString("\t\t\tif !ok {\n")
-		buf.WriteString(fmt.Sprintf("\t\t\t\treturn fmt.Errorf(\"cannot read %s.%s data\")\n", info.Name, field.Name))
-		buf.WriteString("\t\t\t}\n")
-		buf.WriteString(fmt.Sprintf("\t\t\tvar mk %s\n", field.MapKeyType))
-		buf.WriteString(fmt.Sprintf("\t\t\tvar mv %s\n", field.MapValueType))
-		buf.WriteString("\t\t\tvar fc2 easyproto.FieldContext\n")
-		buf.WriteString("\t\t\tfor len(data) > 0 {\n")
-		buf.WriteString("\t\t\t\tdata, err = fc2.NextField(data)\n")
-		buf.WriteString("\t\t\t\tif err != nil {\n")
-		buf.WriteString(fmt.Sprintf("\t\t\t\t\treturn fmt.Errorf(\"cannot read %s.%s entry: %%w\", err)\n", info.Name, field.Name))
-		buf.WriteString("\t\t\t\t}\n")
-		buf.WriteString("\t\t\t\tswitch fc2.FieldNum {\n")
-		buf.WriteString("\t\t\t\tcase 1:\n")
-		buf.WriteString(fmt.Sprintf("\t\t\t\t\tkv, ok := fc2.%s()\n", readFunc(field.MapKeyProto)))
-		buf.WriteString("\t\t\t\t\tif !ok {\n")
-		buf.WriteString(fmt.Sprintf("\t\t\t\t\t\treturn fmt.Errorf(\"cannot read %s.%s key\")\n", info.Name, field.Name))
-		buf.WriteString("\t\t\t\t\t}\n")
-		buf.WriteString("\t\t\t\t\tmk = kv\n")
-		buf.WriteString("\t\t\t\tcase 2:\n")
-		if field.MapValueIsMsg {
-			buf.WriteString("\t\t\t\t\tvdata, ok := fc2.MessageData()\n")
-			buf.WriteString("\t\t\t\t\tif !ok {\n")
-			buf.WriteString(fmt.Sprintf("\t\t\t\t\t\treturn fmt.Errorf(\"cannot read %s.%s value data\")\n", info.Name, field.Name))
-			buf.WriteString("\t\t\t\t\t}\n")
-			if field.MapValueIsPtr {
-				baseValueType := strings.TrimPrefix(field.MapValueType, "*")
-				buf.WriteString(fmt.Sprintf("\t\t\t\t\tmv = &%s{}\n", baseValueType))
+	const tmpl = `{{$fa := printf "x.%s" .Field.Name}}
+{{- if .Field.IsMap}}
+			data, ok := fc.MessageData()
+			if !ok {
+				return fmt.Errorf("cannot read {{.Info.Name}}.{{.Field.Name}} data")
 			}
-			buf.WriteString("\t\t\t\t\tif err := mv.UnmarshalProtobuf(vdata); err != nil {\n")
-			buf.WriteString(fmt.Sprintf("\t\t\t\t\t\treturn fmt.Errorf(\"cannot unmarshal %s.%s value: %%w\", err)\n", info.Name, field.Name))
-			buf.WriteString("\t\t\t\t\t}\n")
-		} else {
-			buf.WriteString(fmt.Sprintf("\t\t\t\t\tvv, ok := fc2.%s()\n", readFunc(field.MapValueProto)))
-			buf.WriteString("\t\t\t\t\tif !ok {\n")
-			buf.WriteString(fmt.Sprintf("\t\t\t\t\t\treturn fmt.Errorf(\"cannot read %s.%s value\")\n", info.Name, field.Name))
-			buf.WriteString("\t\t\t\t\t}\n")
-			buf.WriteString("\t\t\t\t\tmv = vv\n")
-		}
-		buf.WriteString("\t\t\t\t}\n")
-		buf.WriteString("\t\t\t}\n")
-		buf.WriteString(fmt.Sprintf("\t\t\tif %s == nil {\n", fieldAccess))
-		buf.WriteString(fmt.Sprintf("\t\t\t\t%s = make(%s)\n", fieldAccess, field.GoType))
-		buf.WriteString("\t\t\t}\n")
-		buf.WriteString(fmt.Sprintf("\t\t\t%s[mk] = mv", fieldAccess))
-		return buf.String()
-	}
-
-	if field.IsMessage {
-		buf.WriteString("\t\t\tdata, ok := fc.MessageData()\n")
-		buf.WriteString("\t\t\tif !ok {\n")
-		buf.WriteString(fmt.Sprintf("\t\t\t\treturn fmt.Errorf(\"cannot read %s.%s data\")\n", info.Name, field.Name))
-		buf.WriteString("\t\t\t}\n")
-
-		if field.IsPointer && !field.IsRepeated {
-			buf.WriteString(fmt.Sprintf("\t\t\tif %s == nil {\n", fieldAccess))
-			buf.WriteString(fmt.Sprintf("\t\t\t\t%s = &%s{}\n", fieldAccess, field.ElemType))
-			buf.WriteString("\t\t\t}\n")
-			buf.WriteString(fmt.Sprintf("\t\t\tif err := %s.UnmarshalProtobuf(data); err != nil {\n", fieldAccess))
-			buf.WriteString(fmt.Sprintf("\t\t\t\treturn fmt.Errorf(\"cannot unmarshal %s.%s: %%w\", err)\n", info.Name, field.Name))
-			buf.WriteString("\t\t\t}")
-		} else if field.IsRepeated && field.IsSliceOfPtr {
-			buf.WriteString(fmt.Sprintf("\t\t\titem := &%s{}\n", field.ElemType))
-			buf.WriteString("\t\t\tif err := item.UnmarshalProtobuf(data); err != nil {\n")
-			buf.WriteString(fmt.Sprintf("\t\t\t\treturn fmt.Errorf(\"cannot unmarshal %s.%s: %%w\", err)\n", info.Name, field.Name))
-			buf.WriteString("\t\t\t}\n")
-			buf.WriteString(fmt.Sprintf("\t\t\t%s = append(%s, item)", fieldAccess, fieldAccess))
-		} else if field.IsRepeated {
-			buf.WriteString(fmt.Sprintf("\t\t\t%s = append(%s, %s{})\n", fieldAccess, fieldAccess, field.ElemType))
-			buf.WriteString(fmt.Sprintf("\t\t\titem := &%s[len(%s)-1]\n", fieldAccess, fieldAccess))
-			buf.WriteString("\t\t\tif err := item.UnmarshalProtobuf(data); err != nil {\n")
-			buf.WriteString(fmt.Sprintf("\t\t\t\treturn fmt.Errorf(\"cannot unmarshal %s.%s: %%w\", err)\n", info.Name, field.Name))
-			buf.WriteString("\t\t\t}")
-		} else {
-			buf.WriteString(fmt.Sprintf("\t\t\tif err := %s.UnmarshalProtobuf(data); err != nil {\n", fieldAccess))
-			buf.WriteString(fmt.Sprintf("\t\t\t\treturn fmt.Errorf(\"cannot unmarshal %s.%s: %%w\", err)\n", info.Name, field.Name))
-			buf.WriteString("\t\t\t}")
-		}
-	} else if field.IsEnum {
-		if field.IsPointer && !field.IsRepeated {
-			buf.WriteString("\t\t\tv, ok := fc.Int32()\n")
-			buf.WriteString("\t\t\tif !ok {\n")
-			buf.WriteString(fmt.Sprintf("\t\t\t\treturn fmt.Errorf(\"cannot read %s.%s\")\n", info.Name, field.Name))
-			buf.WriteString("\t\t\t}\n")
-			buf.WriteString(fmt.Sprintf("\t\t\ttmp := %s(v)\n", field.ElemType))
-			buf.WriteString(fmt.Sprintf("\t\t\t%s = &tmp", fieldAccess))
-		} else if field.IsRepeated {
-			buf.WriteString("\t\t\tif v, ok := fc.Int32(); ok {\n")
-			buf.WriteString(fmt.Sprintf("\t\t\t\t%s = append(%s, %s(v))\n", fieldAccess, fieldAccess, field.ElemType))
-			buf.WriteString("\t\t\t} else {\n")
-			buf.WriteString(fmt.Sprintf("\t\t\t\treturn fmt.Errorf(\"cannot read %s.%s\")\n", info.Name, field.Name))
-			buf.WriteString("\t\t\t}")
-		} else {
-			buf.WriteString("\t\t\tv, ok := fc.Int32()\n")
-			buf.WriteString("\t\t\tif !ok {\n")
-			buf.WriteString(fmt.Sprintf("\t\t\t\treturn fmt.Errorf(\"cannot read %s.%s\")\n", info.Name, field.Name))
-			buf.WriteString("\t\t\t}\n")
-			buf.WriteString(fmt.Sprintf("\t\t\t%s = %s(v)", fieldAccess, field.BaseType))
-		}
-	} else if field.IsPointer && !field.IsRepeated {
-		buf.WriteString(fmt.Sprintf("\t\t\tv, ok := fc.%s()\n", readFunc(field.ProtoType)))
-		buf.WriteString("\t\t\tif !ok {\n")
-		buf.WriteString(fmt.Sprintf("\t\t\t\treturn fmt.Errorf(\"cannot read %s.%s\")\n", info.Name, field.Name))
-		buf.WriteString("\t\t\t}\n")
-		buf.WriteString(fmt.Sprintf("\t\t\t%s = &v", fieldAccess))
-	} else if field.IsRepeated && (field.ProtoType == "string" || field.ProtoType == "bytes") {
-		// Repeated strings and bytes are length-delimited, not packed - append each element
-		buf.WriteString(fmt.Sprintf("\t\t\tv, ok := fc.%s()\n", readFunc(field.ProtoType)))
-		buf.WriteString("\t\t\tif !ok {\n")
-		buf.WriteString(fmt.Sprintf("\t\t\t\treturn fmt.Errorf(\"cannot read %s.%s\")\n", info.Name, field.Name))
-		buf.WriteString("\t\t\t}\n")
-		buf.WriteString(fmt.Sprintf("\t\t\t%s = append(%s, v)", fieldAccess, fieldAccess))
-	} else if field.IsRepeated {
-		buf.WriteString("\t\t\tvar ok bool\n")
-		buf.WriteString(fmt.Sprintf("\t\t\t%s, ok = fc.%s(%s)\n", fieldAccess, unpackFunc(field.ProtoType), fieldAccess))
-		buf.WriteString("\t\t\tif !ok {\n")
-		buf.WriteString(fmt.Sprintf("\t\t\t\treturn fmt.Errorf(\"cannot read %s.%s\")\n", info.Name, field.Name))
-		buf.WriteString("\t\t\t}")
-	} else {
-		buf.WriteString(fmt.Sprintf("\t\t\tv, ok := fc.%s()\n", readFunc(field.ProtoType)))
-		buf.WriteString("\t\t\tif !ok {\n")
-		buf.WriteString(fmt.Sprintf("\t\t\t\treturn fmt.Errorf(\"cannot read %s.%s\")\n", info.Name, field.Name))
-		buf.WriteString("\t\t\t}\n")
-		buf.WriteString(fmt.Sprintf("\t\t\t%s = v", fieldAccess))
-	}
-
-	return buf.String()
+			var mk {{.Field.MapKeyType}}
+			var mv {{.Field.MapValueType}}
+			var fc2 easyproto.FieldContext
+			for len(data) > 0 {
+				data, err = fc2.NextField(data)
+				if err != nil {
+					return fmt.Errorf("cannot read {{.Info.Name}}.{{.Field.Name}} entry: %w", err)
+				}
+				switch fc2.FieldNum {
+				case 1:
+					kv, ok := fc2.{{readFunc .Field.MapKeyProto}}()
+					if !ok {
+						return fmt.Errorf("cannot read {{.Info.Name}}.{{.Field.Name}} key")
+					}
+					mk = kv
+				case 2:
+{{- if .Field.MapValueIsMsg}}
+					vdata, ok := fc2.MessageData()
+					if !ok {
+						return fmt.Errorf("cannot read {{.Info.Name}}.{{.Field.Name}} value data")
+					}
+{{- if .Field.MapValueIsPtr}}
+					mv = &{{trimPrefix .Field.MapValueType "*"}}{}
+{{- end}}
+					if err := mv.UnmarshalProtobuf(vdata); err != nil {
+						return fmt.Errorf("cannot unmarshal {{.Info.Name}}.{{.Field.Name}} value: %w", err)
+					}
+{{- else}}
+					vv, ok := fc2.{{readFunc .Field.MapValueProto}}()
+					if !ok {
+						return fmt.Errorf("cannot read {{.Info.Name}}.{{.Field.Name}} value")
+					}
+					mv = vv
+{{- end}}
+				}
+			}
+			if {{$fa}} == nil {
+				{{$fa}} = make({{.Field.GoType}})
+			}
+			{{$fa}}[mk] = mv
+{{- else if .Field.IsMessage}}
+			data, ok := fc.MessageData()
+			if !ok {
+				return fmt.Errorf("cannot read {{.Info.Name}}.{{.Field.Name}} data")
+			}
+{{- if and .Field.IsPointer (not .Field.IsRepeated)}}
+			if {{$fa}} == nil {
+				{{$fa}} = &{{.Field.ElemType}}{}
+			}
+			if err := {{$fa}}.UnmarshalProtobuf(data); err != nil {
+				return fmt.Errorf("cannot unmarshal {{.Info.Name}}.{{.Field.Name}}: %w", err)
+			}
+{{- else if and .Field.IsRepeated .Field.IsSliceOfPtr}}
+			item := &{{.Field.ElemType}}{}
+			if err := item.UnmarshalProtobuf(data); err != nil {
+				return fmt.Errorf("cannot unmarshal {{.Info.Name}}.{{.Field.Name}}: %w", err)
+			}
+			{{$fa}} = append({{$fa}}, item)
+{{- else if .Field.IsRepeated}}
+			{{$fa}} = append({{$fa}}, {{.Field.ElemType}}{})
+			item := &{{$fa}}[len({{$fa}})-1]
+			if err := item.UnmarshalProtobuf(data); err != nil {
+				return fmt.Errorf("cannot unmarshal {{.Info.Name}}.{{.Field.Name}}: %w", err)
+			}
+{{- else}}
+			if err := {{$fa}}.UnmarshalProtobuf(data); err != nil {
+				return fmt.Errorf("cannot unmarshal {{.Info.Name}}.{{.Field.Name}}: %w", err)
+			}
+{{- end}}
+{{- else if .Field.IsEnum}}
+{{- if and .Field.IsPointer (not .Field.IsRepeated)}}
+			v, ok := fc.Int32()
+			if !ok {
+				return fmt.Errorf("cannot read {{.Info.Name}}.{{.Field.Name}}")
+			}
+			tmp := {{.Field.ElemType}}(v)
+			{{$fa}} = &tmp
+{{- else if .Field.IsRepeated}}
+			if v, ok := fc.Int32(); ok {
+				{{$fa}} = append({{$fa}}, {{.Field.ElemType}}(v))
+			} else {
+				return fmt.Errorf("cannot read {{.Info.Name}}.{{.Field.Name}}")
+			}
+{{- else}}
+			v, ok := fc.Int32()
+			if !ok {
+				return fmt.Errorf("cannot read {{.Info.Name}}.{{.Field.Name}}")
+			}
+			{{$fa}} = {{.Field.BaseType}}(v)
+{{- end}}
+{{- else if and .Field.IsPointer (not .Field.IsRepeated)}}
+			v, ok := fc.{{readFunc .Field.ProtoType}}()
+			if !ok {
+				return fmt.Errorf("cannot read {{.Info.Name}}.{{.Field.Name}}")
+			}
+			{{$fa}} = &v
+{{- else if and .Field.IsRepeated (isLengthDelimited .Field.ProtoType)}}
+			v, ok := fc.{{readFunc .Field.ProtoType}}()
+			if !ok {
+				return fmt.Errorf("cannot read {{.Info.Name}}.{{.Field.Name}}")
+			}
+			{{$fa}} = append({{$fa}}, v)
+{{- else if .Field.IsRepeated}}
+			var ok bool
+			{{$fa}}, ok = fc.{{unpackFunc .Field.ProtoType}}({{$fa}})
+			if !ok {
+				return fmt.Errorf("cannot read {{.Info.Name}}.{{.Field.Name}}")
+			}
+{{- else}}
+			v, ok := fc.{{readFunc .Field.ProtoType}}()
+			if !ok {
+				return fmt.Errorf("cannot read {{.Info.Name}}.{{.Field.Name}}")
+			}
+			{{$fa}} = v
+{{- end}}`
+	return execTemplate("unmarshal", tmpl, map[string]any{"Info": info, "Field": field})
 }
 
 // unmarshalOneofCases generates unmarshal case statements for a oneof field.
 func unmarshalOneofCases(info *TypeInfo, field *FieldInfo) string {
-	var buf strings.Builder
-	fieldAccess := "x." + field.Name
-
-	for _, variant := range field.OneofVariants {
-		buf.WriteString(fmt.Sprintf("\t\tcase %d:\n", variant.FieldNum))
-		buf.WriteString("\t\t\tdata, ok := fc.MessageData()\n")
-		buf.WriteString("\t\t\tif !ok {\n")
-		buf.WriteString(fmt.Sprintf("\t\t\t\treturn fmt.Errorf(\"cannot read %s.%s (%s) data\")\n", info.Name, field.Name, variant.TypeName))
-		buf.WriteString("\t\t\t}\n")
-		buf.WriteString(fmt.Sprintf("\t\t\tv := &%s{}\n", variant.TypeName))
-		buf.WriteString("\t\t\tif err := v.UnmarshalProtobuf(data); err != nil {\n")
-		buf.WriteString(fmt.Sprintf("\t\t\t\treturn fmt.Errorf(\"cannot unmarshal %s.%s (%s): %%w\", err)\n", info.Name, field.Name, variant.TypeName))
-		buf.WriteString("\t\t\t}\n")
-		buf.WriteString(fmt.Sprintf("\t\t\t%s = v\n", fieldAccess))
-	}
-
-	return buf.String()
+	const tmpl = `{{$fa := printf "x.%s" .Field.Name}}
+{{- range $variant := .Field.OneofVariants}}
+		case {{$variant.FieldNum}}:
+			data, ok := fc.MessageData()
+			if !ok {
+				return fmt.Errorf("cannot read {{$.Info.Name}}.{{$.Field.Name}} ({{$variant.TypeName}}) data")
+			}
+			v := &{{$variant.TypeName}}{}
+			if err := v.UnmarshalProtobuf(data); err != nil {
+				return fmt.Errorf("cannot unmarshal {{$.Info.Name}}.{{$.Field.Name}} ({{$variant.TypeName}}): %w", err)
+			}
+			{{$fa}} = v
+{{- end}}`
+	return execTemplate("oneofCases", tmpl, map[string]any{"Info": info, "Field": field})
 }
 
 // resetField generates reset code for a single field.
 func resetField(info *TypeInfo, field *FieldInfo) string {
-	fieldAccess := "x." + field.Name
-
-	if field.IsOneof {
-		return fmt.Sprintf("\t%s = nil", fieldAccess)
+	const tmpl = `{{$fa := printf "x.%s" .Field.Name}}
+{{- if .Field.IsOneof}}
+	{{$fa}} = nil
+{{- else if .Field.IsMap}}
+	for k := range {{$fa}} {
+		delete({{$fa}}, k)
 	}
-
-	if field.IsMap {
-		return fmt.Sprintf("\tfor k := range %s {\n\t\tdelete(%s, k)\n\t}", fieldAccess, fieldAccess)
-	}
-
-	if field.IsRepeated {
-		return fmt.Sprintf("\t%s = %s[:0]", fieldAccess, fieldAccess)
-	}
-
-	if field.IsPointer {
-		return fmt.Sprintf("\t%s = nil", fieldAccess)
-	}
-
-	if field.IsEnum {
-		return fmt.Sprintf("\t%s = 0", fieldAccess)
-	}
-
-	return fmt.Sprintf("\t%s = %s", fieldAccess, zeroValue(field.GoType))
+{{- else if .Field.IsRepeated}}
+	{{$fa}} = {{$fa}}[:0]
+{{- else if .Field.IsPointer}}
+	{{$fa}} = nil
+{{- else if .Field.IsEnum}}
+	{{$fa}} = 0
+{{- else}}
+	{{$fa}} = *new({{.Field.GoType}})
+{{- end}}`
+	return execTemplate("reset", tmpl, map[string]any{"Info": info, "Field": field})
 }
