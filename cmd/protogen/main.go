@@ -175,14 +175,23 @@ func main() {
 	// Format the code
 	formatted, err := format.Source(buf.Bytes())
 	if err != nil {
-		os.WriteFile("debug_unformatted.go", buf.Bytes(), 0644)
+		tmpFile, tmpErr := os.CreateTemp("", "protogen_debug_*.go")
+		if tmpErr == nil {
+			tmpFile.Write(buf.Bytes())
+			tmpFile.Close()
+			log.Fatalf("failed to format generated code (debug output: %s): %v", tmpFile.Name(), err)
+		}
 		log.Fatalf("failed to format generated code: %v", err)
 	}
 
 	// Determine output file
 	outputFile := *output
 	if outputFile == "" {
-		outputFile = filepath.Join(dir, strings.ToLower(types[0])+"_proto.go")
+		if len(types) == 1 {
+			outputFile = filepath.Join(dir, strings.ToLower(types[0])+"_proto.go")
+		} else {
+			outputFile = filepath.Join(dir, pkgName+"_proto.go")
+		}
 	}
 
 	if err := os.WriteFile(outputFile, formatted, 0644); err != nil {
